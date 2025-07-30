@@ -1,0 +1,361 @@
+/* Button styles */
+.btn-card-primary {
+  background: linear-gradient(135deg, #0d6efd, #0056b3);
+  color: white;
+  border: none;
+  border-radius: 30px;
+  box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+  transition: all 0.3s ease-in-out;
+  font-weight: 600;
+  width: 100%;
+  letter-spacing: 0.02em;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+}
+
+.btn-card-primary:hover {
+  background: linear-gradient(135deg, #0056b3, #0d6efd);
+  transform: translateY(-4px);
+  box-shadow: 0 6px 15px rgba(13, 110, 253, 0.4);
+}
+
+.btn-card-primary:focus {
+  outline: none;
+  box-shadow: 0 0 0 5px rgba(13, 110, 253, 0.3);
+}
+
+.btn-card-success {
+  background: linear-gradient(135deg, #198754, #145a32);
+  color: white;
+  border: none;
+  border-radius: 30px;
+  box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3);
+  transition: all 0.3s ease-in-out;
+  font-weight: 600;
+  width: 100%;
+  letter-spacing: 0.02em;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+}
+
+.btn-card-success:hover {
+  background: linear-gradient(135deg, #145a32, #198754);
+  transform: translateY(-4px);
+  box-shadow: 0 6px 15px rgba(25, 135, 84, 0.4);
+}
+
+.btn-card-light {
+  background: none;
+  border: none;
+  padding: 4px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c757d;
+  transition: all 0.2s ease;
+  width: auto;
+  height: auto;
+}
+
+.btn-card-light span {
+  display: none;
+}
+
+.btn-card-light:hover {
+  color: #495057;
+  transform: none;
+  background: none;
+  box-shadow: none;
+}
+
+.btn-card-warning {
+  background: linear-gradient(135deg, #ffc107, #e0a800);
+  color: #212529;
+  border: none;
+  border-radius: 30px;
+  box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+  transition: all 0.3s ease-in-out;
+  font-weight: 600;
+  width: 100%;
+  letter-spacing: 0.02em;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+}
+
+.btn-card-warning:hover {
+  background: linear-gradient(135deg, #e0a800, #ffc107);
+  transform: translateY(-4px);
+  box-shadow: 0 6px 15px rgba(255, 193, 7, 0.4);
+}
+
+.btn-card-danger {
+  background: none;
+  border: none;
+  padding: 4px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #dc3545;
+  transition: all 0.2s ease;
+  width: auto;
+  height: auto;
+}
+
+.btn-card-danger span {
+  display: none;
+}
+
+.btn-card-danger:hover {
+  color: #bb2d3b;
+  transform: none;
+  background: none;
+  box-shadow: none;
+}
+
+.btn-card-info {
+  background: none;
+  border: none;
+  padding: 4px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0dcaf0;
+  transition: all 0.2s ease;
+  width: auto;
+  height: auto;
+}
+
+.btn-card-info span {
+  display: none;
+}
+
+.btn-card-info:hover {
+  color: #0ba5c7;
+  transform: none;
+  background: none;
+  box-shadow: none;
+}
+
+/* Button focus states */
+.btn-card-primary:focus, .btn-card-success:focus, 
+.btn-card-warning:focus, .btn-card-light:focus,
+.btn-card-danger:focus, .btn-card-info:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+}
+
+/* Create assignment button */
+.btn-create-assignment {
+  background: #0d6efd;
+  color: white;
+  border: none;
+  border-radius: 30px;
+  box-shadow: 0 3px 8px rgba(13, 110, 253, 0.25);
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+}
+
+.btn-create-assignment:hover {
+  background: #0b5ed7;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px rgba(13, 110, 253, 0.35);
+}
+
+.btn-create-assignment:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.25);
+}
+
+/* Refresh button styling */
+.btn-refresh {
+  background: #f8f9fa;
+  color: #212529;
+  border: 1px solid #dee2e6;
+  border-radius: 30px;
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+  padding: 0.5rem 0.8rem;
+}
+
+.btn-refresh:hover {
+  background: #e9ecef;
+  transform: translateY(-2px);
+  border-color: #ced4da;
+}
+
+.btn-refresh:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+}
+
+/* Refresh animation */
+.spin-animation {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Assignment Card Styles */
+.assignment-card {
+  transition: all 0.3s ease-in-out;
+  border-radius: 15px;
+  overflow: hidden;
+  height: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.assignment-card.ready-card { border-top: 4px solid #28a745; }
+.assignment-card.partial-card { border-top: 4px solid #ffc107; }
+.assignment-card.not-ready-card { border-top-color: #0dcaf0; }
+.assignment-card.error-card { border-top: 4px solid #dc3545; }
+
+.assignment-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.assignment-card .card-title {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.assignment-card .card-body {
+  padding: 1.5rem;
+}
+
+.assignment-card .btn {
+  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+}
+
+/* Card content styling */
+.description-container {
+  max-height: 4.5rem;
+  overflow: hidden;
+  position: relative;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.description-container p {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.course-info {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.due-date-label {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.points-badge {
+  padding: 0.35rem 0.75rem;
+  font-weight: 600;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.action-buttons .d-flex {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Icon buttons container styling */
+.icon-buttons-container {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* Ensure buttons have consistent padding and alignment */
+.btn-card-success,
+.btn-card-primary,
+.btn-card-light,
+.btn-card-info,
+.btn-card-danger {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  border-radius: 0.5rem;
+}
+
+/* Add hover effects for better interactivity */
+.btn-card-success:hover,
+.btn-card-primary:hover,
+.btn-card-light:hover,
+.btn-card-info:hover,
+.btn-card-danger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Status-based card borders */
+.assignment-card.ready-card {
+  border-color: rgba(25, 135, 84, 0.3);
+}
+
+.assignment-card.partial-card {
+  border-color: rgba(255, 193, 7, 0.3);
+}
+
+.assignment-card.not-ready-card {
+  border-color: rgba(13, 110, 253, 0.3);
+}
+
+.assignment-card.error-card {
+  border-color: rgba(220, 53, 69, 0.3);
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+  .assignment-card {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  }
+  
+  .btn-card-danger, .btn-card-light, .btn-card-info {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}
+
+/* Light hover effect for buttons on mobile */
+@media (hover: none) {
+  .btn-card-primary:hover, .btn-card-success:hover, 
+  .btn-card-warning:hover, .btn-card-light:hover,
+  .btn-card-danger:hover, .btn-card-info:hover,
+  .btn-create-assignment:hover, .btn-refresh:hover,
+  .assignment-card:hover {
+    transform: none !important;
+    box-shadow: inherit;
+    border-color: inherit;
+  }
+}
