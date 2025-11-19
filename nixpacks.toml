@@ -1,0 +1,14 @@
+# Nixpacks configuration for Railway deployment
+# This file should be in the ROOT directory, not in /server
+
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "python3"]
+
+[phases.install]
+cmds = ["cd server && npm install"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "cd server && npm start"
