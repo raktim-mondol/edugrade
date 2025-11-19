@@ -8,6 +8,7 @@ const { processFileForGemini } = require('../utils/pdfExtractor');
 const { processRubricPDF } = require('../utils/geminiService');
 const { projectProcessingQueue, rubricProcessingQueue, JOB_TYPES } = require('../workers/projectProcessor');
 const { isConnected } = require('../config/db');
+const { getUserId, isAuthenticated, verifyOwnership } = require('../utils/authHelper');
 
 // Helper function to update the evaluation readiness status of a project
 async function updateProjectEvaluationReadiness(projectId) {
@@ -104,9 +105,9 @@ exports.createProject = async (req, res) => {
     }
 
     // Get userId from authenticated request
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -223,9 +224,9 @@ exports.createProject = async (req, res) => {
 // Get all projects
 exports.getProjects = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -240,9 +241,9 @@ exports.getProjects = async (req, res) => {
 // Get project by ID
 exports.getProjectById = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -253,7 +254,7 @@ exports.getProjectById = async (req, res) => {
     }
 
     // Verify ownership
-    if (project.userId !== userId) {
+    if (!verifyOwnership(project.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this project.' });
     }
 
@@ -267,9 +268,9 @@ exports.getProjectById = async (req, res) => {
 // Update project
 exports.updateProject = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -287,7 +288,7 @@ exports.updateProject = async (req, res) => {
     }
 
     // Verify ownership
-    if (project.userId !== userId) {
+    if (!verifyOwnership(project.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this project.' });
     }
 
@@ -443,9 +444,9 @@ exports.updateProject = async (req, res) => {
 // Delete project
 exports.deleteProject = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -470,7 +471,7 @@ exports.deleteProject = async (req, res) => {
     }
 
     // Verify ownership
-    if (project.userId !== userId) {
+    if (!verifyOwnership(project.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this project.' });
     }
     
@@ -550,9 +551,9 @@ exports.deleteProject = async (req, res) => {
 // Get project processing status
 exports.getProjectStatus = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -565,7 +566,7 @@ exports.getProjectStatus = async (req, res) => {
     }
 
     // Verify ownership
-    if (project.userId !== userId) {
+    if (!verifyOwnership(project.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this project.' });
     }
     

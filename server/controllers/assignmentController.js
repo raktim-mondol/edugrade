@@ -2,13 +2,14 @@ const { Assignment } = require('../models/assignment');
 const fs = require('fs').promises;
 const path = require('path');
 const { extractTextFromPDF } = require('../utils/pdfExtractor');
-const { 
+const {
   assignmentProcessingQueue,
   rubricProcessingQueue,
   solutionProcessingQueue,
   orchestrationQueue
 } = require('../config/queue');
 const { isConnected } = require('../config/db');
+const { getUserId, isAuthenticated, verifyOwnership } = require('../utils/authHelper');
 
 // Create a new assignment
 exports.createAssignment = async (req, res) => {
@@ -63,11 +64,11 @@ exports.createAssignment = async (req, res) => {
     }
 
     // Get userId from authenticated request
-    const userId = req.auth?.userId;
-
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
+
+    const userId = getUserId(req);
 
     // Create new assignment document
     const assignment = new Assignment({
@@ -184,11 +185,11 @@ exports.createAssignment = async (req, res) => {
 exports.getAssignments = async (req, res) => {
   try {
     // Get userId from authenticated request
-    const userId = req.auth?.userId;
-
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
+
+    const userId = getUserId(req);
 
     // Filter assignments by userId
     const assignments = await Assignment.find({ userId }).sort({ createdAt: -1 });
@@ -202,9 +203,7 @@ exports.getAssignments = async (req, res) => {
 // Get a single assignment by ID
 exports.getAssignmentById = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
-
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -215,7 +214,7 @@ exports.getAssignmentById = async (req, res) => {
     }
 
     // Verify ownership
-    if (assignment.userId !== userId) {
+    if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
 
@@ -229,9 +228,7 @@ exports.getAssignmentById = async (req, res) => {
 // Update an assignment
 exports.updateAssignment = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
-
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -244,7 +241,7 @@ exports.updateAssignment = async (req, res) => {
     }
 
     // Verify ownership
-    if (assignment.userId !== userId) {
+    if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
@@ -375,9 +372,7 @@ exports.updateAssignment = async (req, res) => {
 // Delete an assignment
 exports.deleteAssignment = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
-
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -388,7 +383,7 @@ exports.deleteAssignment = async (req, res) => {
     }
 
     // Verify ownership
-    if (assignment.userId !== userId) {
+    if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
@@ -422,9 +417,7 @@ exports.deleteAssignment = async (req, res) => {
 // Get the processing status of an assignment
 exports.getProcessingStatus = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
-
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -435,7 +428,7 @@ exports.getProcessingStatus = async (req, res) => {
     }
 
     // Verify ownership
-    if (assignment.userId !== userId) {
+    if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
@@ -495,9 +488,7 @@ function getEvaluationReadiness(assignment) {
 // Re-run orchestration for an assignment
 exports.rerunOrchestration = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
-
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -514,7 +505,7 @@ exports.rerunOrchestration = async (req, res) => {
     }
 
     // Verify ownership
-    if (assignment.userId !== userId) {
+    if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     

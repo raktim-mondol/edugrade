@@ -5,6 +5,7 @@ const path = require('path');
 const { processFileForGemini } = require('../utils/pdfExtractor');
 const { submissionProcessingQueue } = require('../config/queue');
 const { isConnected } = require('../config/db');
+const { getUserId, isAuthenticated, verifyOwnership } = require('../utils/authHelper');
 const Excel = require('exceljs');
 const os = require('os');
 
@@ -955,9 +956,9 @@ exports.uploadSubmission = async (req, res) => {
       return res.status(400).json({ error: 'Student ID is required' });
     }
 
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -969,7 +970,7 @@ exports.uploadSubmission = async (req, res) => {
       }
 
       // Verify ownership
-      if (assignment.userId !== userId) {
+      if (!verifyOwnership(assignment.userId, req)) {
         return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
       }
 
@@ -1091,9 +1092,9 @@ exports.uploadSubmission = async (req, res) => {
 // Upload batch submissions
 exports.uploadBatchSubmissions = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -1105,7 +1106,7 @@ exports.uploadBatchSubmissions = async (req, res) => {
     }
 
     // Verify ownership
-    if (assignment.userId !== userId) {
+    if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
@@ -1231,9 +1232,9 @@ exports.uploadBatchSubmissions = async (req, res) => {
 // Get submissions for a specific assignment
 exports.getSubmissions = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -1245,7 +1246,7 @@ exports.getSubmissions = async (req, res) => {
     }
 
     // Verify ownership
-    if (assignment.userId !== userId) {
+    if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
 
@@ -1261,9 +1262,9 @@ exports.getSubmissions = async (req, res) => {
 // Get a single submission by ID
 exports.getSubmissionById = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -1279,7 +1280,7 @@ exports.getSubmissionById = async (req, res) => {
       return res.status(404).json({ error: 'Associated assignment not found' });
     }
 
-    if (assignment.userId !== userId) {
+    if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
 
@@ -1309,9 +1310,9 @@ exports.getSubmissionById = async (req, res) => {
  */
 exports.exportToExcel = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -1325,7 +1326,7 @@ exports.exportToExcel = async (req, res) => {
     }
 
     // Verify ownership
-    if (assignment.userId !== userId) {
+    if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
 
@@ -1430,9 +1431,9 @@ exports.exportToExcel = async (req, res) => {
 // Get converted PDF for a submission (if IPYNB was converted)
 exports.getSubmissionPdf = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -1454,7 +1455,7 @@ exports.getSubmissionPdf = async (req, res) => {
       return res.status(404).json({ error: 'Associated assignment not found' });
     }
 
-    if (assignment.userId !== userId) {
+    if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
@@ -1504,9 +1505,9 @@ exports.getSubmissionPdf = async (req, res) => {
 // Get submission file information including PDF paths
 exports.getSubmissionFileInfo = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -1528,7 +1529,7 @@ exports.getSubmissionFileInfo = async (req, res) => {
       return res.status(404).json({ error: 'Associated assignment not found' });
     }
 
-    if (assignment.userId !== userId) {
+    if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
@@ -1552,9 +1553,9 @@ exports.getSubmissionFileInfo = async (req, res) => {
 // Delete a submission
 exports.deleteSubmission = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -1576,7 +1577,7 @@ exports.deleteSubmission = async (req, res) => {
       return res.status(404).json({ error: 'Associated assignment not found' });
     }
 
-    if (assignment.userId !== userId) {
+    if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
@@ -1625,9 +1626,9 @@ exports.deleteSubmission = async (req, res) => {
  */
 exports.rerunSubmission = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const userId = getUserId(req);
 
-    if (!userId) {
+    if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
@@ -1652,7 +1653,7 @@ exports.rerunSubmission = async (req, res) => {
       return res.status(404).json({ error: 'Associated assignment not found' });
     }
 
-    if (assignment.userId !== userId) {
+    if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
 
