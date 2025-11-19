@@ -5,7 +5,7 @@ const { Project } = require('../models/project');
 // Fix: Import ProjectSubmission model properly
 const ProjectSubmission = require('../models/projectSubmission');
 const { processFileForGemini } = require('../utils/pdfExtractor');
-const { processRubric } = require('../utils/deepseekService');
+const { processRubricPDF } = require('../utils/geminiService');
 const { projectProcessingQueue, rubricProcessingQueue, JOB_TYPES } = require('../workers/projectProcessor');
 const { isConnected } = require('../config/db');
 
