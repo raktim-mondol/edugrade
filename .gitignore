@@ -6,6 +6,7 @@
 # Environment variables
 .env
 /server/.env
+/client/.env
 
 # Logs
 npm-debug.log*

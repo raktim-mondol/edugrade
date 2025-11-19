@@ -2,8 +2,11 @@ import React from 'react';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { FiFileText, FiUpload, FiCheckSquare, FiBarChart2, FiArrowRight } from 'react-icons/fi';
+import { useAuth } from '@clerk/clerk-react';
 
 const Home = () => {
+  const { isSignedIn } = useAuth();
+
   return (
     <Container>
       <Row className="align-items-center mb-5">
@@ -11,21 +14,39 @@ const Home = () => {
           <div className="py-5">
             <h1 className="display-4 fw-bold mb-3">Assignment Evaluation System</h1>
             <p className="lead fs-5 text-muted mb-4">
-              Streamline the grading process using AI to evaluate student submissions against 
+              Streamline the grading process using AI to evaluate student submissions against
               predefined solutions and marking rubrics — making assessment faster, more consistent, and insightful.
             </p>
             <div className="d-flex flex-wrap gap-3">
-              <Link to="/assignments/new">
-                <Button variant="primary" size="lg" className="rounded-pill shadow-sm">
-                  Create New Assignment
-                  <FiArrowRight className="ms-2" />
-                </Button>
-              </Link>
-              <Link to="/assignments">
-                <Button variant="outline-secondary" size="lg" className="rounded-pill">
-                  View Assignments
-                </Button>
-              </Link>
+              {isSignedIn ? (
+                <>
+                  <Link to="/assignments/new">
+                    <Button variant="primary" size="lg" className="rounded-pill shadow-sm">
+                      Create New Assignment
+                      <FiArrowRight className="ms-2" />
+                    </Button>
+                  </Link>
+                  <Link to="/assignments">
+                    <Button variant="outline-secondary" size="lg" className="rounded-pill">
+                      View Assignments
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/sign-up">
+                    <Button variant="primary" size="lg" className="rounded-pill shadow-sm">
+                      Get Started
+                      <FiArrowRight className="ms-2" />
+                    </Button>
+                  </Link>
+                  <Link to="/sign-in">
+                    <Button variant="outline-secondary" size="lg" className="rounded-pill">
+                      Sign In
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </Col>
@@ -117,15 +138,23 @@ const Home = () => {
                 using the criteria defined in your rubric, providing consistent, objective evaluations.
               </p>
               <p className="fs-5 mb-4">
-                Supporting multiple LLM providers like OpenAI, Anthropic, and Google Gemini, 
-                EduGrade gives you flexibility in choosing the most appropriate AI model for your specific 
+                Supporting multiple LLM providers like OpenAI, Anthropic, and Google Gemini,
+                EduGrade gives you flexibility in choosing the most appropriate AI model for your specific
                 evaluation needs.
               </p>
-              <Link to="/assignments">
-                <Button variant="primary" size="lg" className="rounded-pill">
-                  Get Started <FiArrowRight className="ms-2" />
-                </Button>
-              </Link>
+              {isSignedIn ? (
+                <Link to="/assignments">
+                  <Button variant="primary" size="lg" className="rounded-pill">
+                    View Your Assignments <FiArrowRight className="ms-2" />
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/sign-up">
+                  <Button variant="primary" size="lg" className="rounded-pill">
+                    Get Started <FiArrowRight className="ms-2" />
+                  </Button>
+                </Link>
+              )}
             </Card.Body>
           </Card>
         </Col>
