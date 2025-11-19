@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
+import { useAuth } from '@clerk/clerk-react';
+import { configureAuth } from './api/axios';
 import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
@@ -17,6 +19,13 @@ import ProjectForm from './pages/ProjectForm';
 import ProjectSubmissionForm from './pages/ProjectSubmissionForm';
 
 function App() {
+  const { getToken } = useAuth();
+
+  // Configure axios to use Clerk authentication
+  useEffect(() => {
+    configureAuth(getToken);
+  }, [getToken]);
+
   return (
     <Router>
       <Header />

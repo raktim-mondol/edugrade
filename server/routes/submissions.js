@@ -3,7 +3,8 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { 
+const { requireAuth } = require('../middleware/auth');
+const {
   getSubmissions,
   uploadSubmission,
   uploadBatchSubmissions,
@@ -52,10 +53,13 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ 
+const upload = multer({
   storage,
   fileFilter
 });
+
+// Apply authentication middleware to all routes
+router.use(requireAuth());
 
 // Specific routes should come before variable routes
 // POST /api/submissions/single - Upload single submission

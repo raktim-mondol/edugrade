@@ -3,15 +3,16 @@ const router = express.Router();
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
-const { 
-  createProject, 
-  getProjects, 
-  getProjectById, 
-  updateProject, 
+const { requireAuth } = require('../middleware/auth');
+const {
+  createProject,
+  getProjects,
+  getProjectById,
+  updateProject,
   deleteProject,
-  getProjectStatus 
+  getProjectStatus
 } = require('../controllers/projectController');
-const { 
+const {
   createSubmission,
   getSubmissionsByProject,
   getSubmissionById,
@@ -110,6 +111,9 @@ const uploadSubmission = multer({
     }
   }
 });
+
+// Apply authentication middleware to all routes
+router.use(requireAuth());
 
 // Project routes - using multer middleware for file uploads
 router.post('/', uploadProject.fields([

@@ -10,10 +10,31 @@ const api = axios.create({
   },
 });
 
-// Add request interceptor for debugging
+// Variable to store the getToken function from Clerk
+let getAuthToken = null;
+
+// Function to configure axios with Clerk authentication
+export const configureAuth = (getTokenFn) => {
+  getAuthToken = getTokenFn;
+};
+
+// Add request interceptor for authentication and debugging
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     console.log('API Request:', config.method.toUpperCase(), config.baseURL + config.url);
+
+    // Add Clerk authentication token if available
+    if (getAuthToken) {
+      try {
+        const token = await getAuthToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (error) {
+        console.error('Error getting auth token:', error);
+      }
+    }
+
     return config;
   },
   (error) => {

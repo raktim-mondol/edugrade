@@ -103,6 +103,13 @@ exports.createProject = async (req, res) => {
       console.log('[projectController] Rubric Path:', rubricFilePath);
     }
 
+    // Get userId from authenticated request
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     // Make sure directory exists for project files
     try {
       const dirPath = path.dirname(projectFilePath);
@@ -114,6 +121,7 @@ exports.createProject = async (req, res) => {
 
     // Create new Project instance
     const project = new Project({
+      userId,
       title,
       description,
       course,
@@ -122,8 +130,8 @@ exports.createProject = async (req, res) => {
       isGroupProject: isGroupProject === 'true',
       maxGroupSize: maxGroupSize || 1,
       // Assuming requiredFiles and evaluationSections are sent as JSON strings
-      requiredFiles: requiredFiles ? JSON.parse(requiredFiles) : [], 
-      evaluationSections: evaluationSections ? JSON.parse(evaluationSections) : [], 
+      requiredFiles: requiredFiles ? JSON.parse(requiredFiles) : [],
+      evaluationSections: evaluationSections ? JSON.parse(evaluationSections) : [],
       codeRequired: codeRequired === 'true',
       reportRequired: reportRequired === 'true',
       projectFile: projectFilePath,
@@ -215,7 +223,13 @@ exports.createProject = async (req, res) => {
 // Get all projects
 exports.getProjects = async (req, res) => {
   try {
-    const projects = await Project.find().sort({ createdAt: -1 });
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
+    const projects = await Project.find({ userId }).sort({ createdAt: -1 });
     res.status(200).json({ projects });
   } catch (error) {
     console.error('Error retrieving projects:', error);
@@ -226,12 +240,23 @@ exports.getProjects = async (req, res) => {
 // Get project by ID
 exports.getProjectById = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const project = await Project.findById(req.params.id);
-    
+
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
-    
+
+    // Verify ownership
+    if (project.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this project.' });
+    }
+
     res.status(200).json({ project });
   } catch (error) {
     console.error('Error retrieving project:', error);
@@ -242,17 +267,28 @@ exports.getProjectById = async (req, res) => {
 // Update project
 exports.updateProject = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const { id } = req.params;
-    const { 
-      title, description, course, dueDate, totalPoints, 
+    const {
+      title, description, course, dueDate, totalPoints,
       isGroupProject, maxGroupSize, requiredFiles, evaluationSections,
       codeRequired, reportRequired
     } = req.body;
 
     const project = await Project.findById(id);
-    
+
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Verify ownership
+    if (project.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this project.' });
     }
 
     // Parse evaluation sections if provided as string
@@ -407,24 +443,35 @@ exports.updateProject = async (req, res) => {
 // Delete project
 exports.deleteProject = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const { id } = req.params;
-    
+
     // Validate that id is present and not "undefined"
     if (!id || id === "undefined") {
       console.error('Invalid project ID provided for deletion:', id);
       return res.status(400).json({ error: 'Invalid project ID provided' });
     }
-    
+
     // Validate that id is a valid MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       console.error('Invalid MongoDB ObjectId format for deletion:', id);
       return res.status(400).json({ error: 'Invalid project ID format' });
     }
-    
+
     const project = await Project.findById(id);
-    
+
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Verify ownership
+    if (project.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this project.' });
     }
     
     console.log(`Deleting project: ${project._id} - ${project.title}`);
@@ -503,12 +550,23 @@ exports.deleteProject = async (req, res) => {
 // Get project processing status
 exports.getProjectStatus = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const { id } = req.params;
-    
+
     const project = await Project.findById(id);
-    
+
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Verify ownership
+    if (project.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this project.' });
     }
     
     // Get status information

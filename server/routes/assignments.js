@@ -3,11 +3,12 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { 
-  getAssignments, 
-  getAssignmentById, 
-  createAssignment, 
-  updateAssignment, 
+const { requireAuth } = require('../middleware/auth');
+const {
+  getAssignments,
+  getAssignmentById,
+  createAssignment,
+  updateAssignment,
   deleteAssignment,
   getProcessingStatus,
   rerunOrchestration
@@ -41,6 +42,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+// Apply authentication middleware to all routes
+router.use(requireAuth());
+
 // Define routes for assignments
 // GET /api/assignments - Get all assignments
 router.get('/', getAssignments);
@@ -56,7 +60,7 @@ router.post('/:id/rerun-orchestration', rerunOrchestration);
 
 // POST /api/assignments - Create new assignment
 // Multiple file uploads for assignment, solution, and rubric
-router.post('/', 
+router.post('/',
   upload.fields([
     { name: 'assignment', maxCount: 1 },
     { name: 'solution', maxCount: 1 },
@@ -66,7 +70,7 @@ router.post('/',
 );
 
 // PUT /api/assignments/:id - Update assignment
-router.put('/:id', 
+router.put('/:id',
   upload.fields([
     { name: 'assignment', maxCount: 1 },
     { name: 'solution', maxCount: 1 },

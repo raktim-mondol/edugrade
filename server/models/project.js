@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const projectSchema = new mongoose.Schema({
+  // User/Creator information
+  userId: {
+    type: String,
+    required: true,
+    index: true
+  },
   title: {
     type: String,
     required: true,

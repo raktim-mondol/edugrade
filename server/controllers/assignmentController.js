@@ -62,8 +62,16 @@ exports.createAssignment = async (req, res) => {
       console.warn('Failed to parse sections JSON:', sections, error);
     }
 
+    // Get userId from authenticated request
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     // Create new assignment document
     const assignment = new Assignment({
+      userId,
       title,
       description,
       dueDate,
@@ -175,7 +183,15 @@ exports.createAssignment = async (req, res) => {
 // Get all assignments
 exports.getAssignments = async (req, res) => {
   try {
-    const assignments = await Assignment.find().sort({ createdAt: -1 });
+    // Get userId from authenticated request
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
+    // Filter assignments by userId
+    const assignments = await Assignment.find({ userId }).sort({ createdAt: -1 });
     res.status(200).json({ assignments });
   } catch (error) {
     console.error('Error retrieving assignments:', error);
@@ -186,12 +202,23 @@ exports.getAssignments = async (req, res) => {
 // Get a single assignment by ID
 exports.getAssignmentById = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const assignment = await Assignment.findById(req.params.id);
-    
+
     if (!assignment) {
       return res.status(404).json({ error: 'Assignment not found' });
     }
-    
+
+    // Verify ownership
+    if (assignment.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
+    }
+
     res.status(200).json({ assignment });
   } catch (error) {
     console.error('Error retrieving assignment:', error);
@@ -202,12 +229,23 @@ exports.getAssignmentById = async (req, res) => {
 // Update an assignment
 exports.updateAssignment = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const { title, description, dueDate, course, totalPoints, questionStructure } = req.body;
-    
+
     const assignment = await Assignment.findById(req.params.id);
-    
+
     if (!assignment) {
       return res.status(404).json({ error: 'Assignment not found' });
+    }
+
+    // Verify ownership
+    if (assignment.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
     // Parse question structure if provided
@@ -337,10 +375,21 @@ exports.updateAssignment = async (req, res) => {
 // Delete an assignment
 exports.deleteAssignment = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const assignment = await Assignment.findById(req.params.id);
-    
+
     if (!assignment) {
       return res.status(404).json({ error: 'Assignment not found' });
+    }
+
+    // Verify ownership
+    if (assignment.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
     // Delete associated files
@@ -373,10 +422,21 @@ exports.deleteAssignment = async (req, res) => {
 // Get the processing status of an assignment
 exports.getProcessingStatus = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const assignment = await Assignment.findById(req.params.id);
-    
+
     if (!assignment) {
       return res.status(404).json({ error: 'Assignment not found' });
+    }
+
+    // Verify ownership
+    if (assignment.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
     // Return the processing status and related statuses
@@ -435,16 +495,27 @@ function getEvaluationReadiness(assignment) {
 // Re-run orchestration for an assignment
 exports.rerunOrchestration = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const assignmentId = req.params.id;
     const { forceReread } = req.body; // Optional: force re-reading of files
-    
+
     console.log(`Re-running orchestration for assignment ${assignmentId}`);
     console.log(`Force re-read files: ${forceReread || false}`);
-    
+
     const assignment = await Assignment.findById(assignmentId);
-    
+
     if (!assignment) {
       return res.status(404).json({ error: 'Assignment not found' });
+    }
+
+    // Verify ownership
+    if (assignment.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
     // Check if all required processing is complete

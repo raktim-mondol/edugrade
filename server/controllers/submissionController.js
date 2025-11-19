@@ -955,12 +955,24 @@ exports.uploadSubmission = async (req, res) => {
       return res.status(400).json({ error: 'Student ID is required' });
     }
 
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     try {
       const assignment = await Assignment.findById(assignmentId);
       if (!assignment) {
         console.log('Assignment not found:', assignmentId);
         return res.status(404).json({ error: 'Assignment not found' });
       }
+
+      // Verify ownership
+      if (assignment.userId !== userId) {
+        return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
+      }
+
       console.log('Assignment found:', assignment._id);
     } catch (err) {
       console.error('Error finding assignment:', err);
@@ -1079,11 +1091,22 @@ exports.uploadSubmission = async (req, res) => {
 // Upload batch submissions
 exports.uploadBatchSubmissions = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const { assignmentId } = req.body;
-    
+
     const assignment = await Assignment.findById(assignmentId);
     if (!assignment) {
       return res.status(404).json({ error: 'Assignment not found' });
+    }
+
+    // Verify ownership
+    if (assignment.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
     const files = req.files;
@@ -1208,15 +1231,26 @@ exports.uploadBatchSubmissions = async (req, res) => {
 // Get submissions for a specific assignment
 exports.getSubmissions = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const { assignmentId } = req.params;
-    
+
     const assignment = await Assignment.findById(assignmentId);
     if (!assignment) {
       return res.status(404).json({ error: 'Assignment not found' });
     }
-    
+
+    // Verify ownership
+    if (assignment.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
+    }
+
     const submissions = await Submission.find({ assignmentId }).sort({ createdAt: -1 });
-    
+
     res.status(200).json({ submissions });
   } catch (error) {
     console.error('Error retrieving submissions:', error);
@@ -1227,12 +1261,28 @@ exports.getSubmissions = async (req, res) => {
 // Get a single submission by ID
 exports.getSubmissionById = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const submission = await Submission.findById(req.params.id);
-    
+
     if (!submission) {
       return res.status(404).json({ error: 'Submission not found' });
     }
-    
+
+    // Verify ownership by checking assignment
+    const assignment = await Assignment.findById(submission.assignmentId);
+    if (!assignment) {
+      return res.status(404).json({ error: 'Associated assignment not found' });
+    }
+
+    if (assignment.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
+    }
+
     res.status(200).json({ submission });
   } catch (error) {
     console.error('Error retrieving submission:', error);
@@ -1259,6 +1309,12 @@ exports.getSubmissionById = async (req, res) => {
  */
 exports.exportToExcel = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const { assignmentId } = req.params;
 
     console.log(`\n=== EXCEL EXPORT DEBUG: Assignment ID: ${assignmentId} ===`);
@@ -1266,6 +1322,11 @@ exports.exportToExcel = async (req, res) => {
     const assignment = await Assignment.findById(assignmentId);
     if (!assignment) {
       return res.status(404).json({ error: 'Assignment not found' });
+    }
+
+    // Verify ownership
+    if (assignment.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
 
     console.log(`Assignment found: ${assignment.title}`);
@@ -1369,16 +1430,32 @@ exports.exportToExcel = async (req, res) => {
 // Get converted PDF for a submission (if IPYNB was converted)
 exports.getSubmissionPdf = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const { id } = req.params;
-    
+
     if (!id) {
       return res.status(400).json({ error: 'Submission ID is required' });
     }
-    
+
     const submission = await Submission.findById(id);
-    
+
     if (!submission) {
       return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    // Verify ownership by checking assignment
+    const assignment = await Assignment.findById(submission.assignmentId);
+    if (!assignment) {
+      return res.status(404).json({ error: 'Associated assignment not found' });
+    }
+
+    if (assignment.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
     const pdfInfo = getSubmissionPdfInfo(submission);
@@ -1427,16 +1504,32 @@ exports.getSubmissionPdf = async (req, res) => {
 // Get submission file information including PDF paths
 exports.getSubmissionFileInfo = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const { id } = req.params;
-    
+
     if (!id) {
       return res.status(400).json({ error: 'Submission ID is required' });
     }
-    
+
     const submission = await Submission.findById(id);
-    
+
     if (!submission) {
       return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    // Verify ownership by checking assignment
+    const assignment = await Assignment.findById(submission.assignmentId);
+    if (!assignment) {
+      return res.status(404).json({ error: 'Associated assignment not found' });
+    }
+
+    if (assignment.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
     const pdfInfo = getSubmissionPdfInfo(submission);
@@ -1459,16 +1552,32 @@ exports.getSubmissionFileInfo = async (req, res) => {
 // Delete a submission
 exports.deleteSubmission = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const { id } = req.params;
-    
+
     if (!id) {
       return res.status(400).json({ error: 'Submission ID is required' });
     }
-    
+
     const submission = await Submission.findById(id);
-    
+
     if (!submission) {
       return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    // Verify ownership by checking assignment
+    const assignment = await Assignment.findById(submission.assignmentId);
+    if (!assignment) {
+      return res.status(404).json({ error: 'Associated assignment not found' });
+    }
+
+    if (assignment.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
     
     // Delete original submission file
@@ -1516,8 +1625,14 @@ exports.deleteSubmission = async (req, res) => {
  */
 exports.rerunSubmission = async (req, res) => {
   try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
     const { id } = req.params;
-    
+
     if (!id) {
       return res.status(400).json({ error: 'Submission ID is required' });
     }
@@ -1526,9 +1641,19 @@ exports.rerunSubmission = async (req, res) => {
 
     // Find the submission
     const submission = await Submission.findById(id);
-    
+
     if (!submission) {
       return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    // Verify ownership by checking assignment
+    const assignment = await Assignment.findById(submission.assignmentId);
+    if (!assignment) {
+      return res.status(404).json({ error: 'Associated assignment not found' });
+    }
+
+    if (assignment.userId !== userId) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
 
     // Check if the submission has the required file paths
