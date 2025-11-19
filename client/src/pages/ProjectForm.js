@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Spinner, Alert, Card } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import FileDropzone from '../components/FileDropzone';
 import { FiSave, FiXCircle, FiInfo, FiCode, FiFileText } from 'react-icons/fi';
 
@@ -31,7 +31,7 @@ const ProjectForm = () => {
       const fetchProject = async () => {
         try {
           setFormLoading(true);
-          const response = await axios.get(`/api/projects/${id}`);
+          const response = await api.get(`/api/projects/${id}`);
           const project = response.data.project;
           setProjectData({
             title: project.title || '',
@@ -138,7 +138,7 @@ const ProjectForm = () => {
 
       if (isEditing) {
         // Update existing project
-        await axios.put(`/api/projects/${id}`, formData, {
+        await api.put(`/api/projects/${id}`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -146,7 +146,7 @@ const ProjectForm = () => {
         setSuccess('Project updated successfully!');
       } else {
         // Create new project
-        await axios.post('/api/projects', formData, {
+        await api.post('/api/projects', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },

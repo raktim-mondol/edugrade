@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useReducer } from 'react';
 import { Container, Row, Col, Card, Button, Table, Spinner, Alert, Badge } from 'react-bootstrap';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import { FiUpload, FiDownload, FiBarChart2, FiCheckCircle, FiAlertCircle, FiClock, FiRefreshCw } from 'react-icons/fi';
 
 // Reducer function to handle surgical updates to submission state
@@ -63,11 +63,11 @@ const SubmissionList = () => {
         setLoading(true);
         
         // Fetch assignment details
-        const assignmentRes = await axios.get(`/api/assignments/${assignmentId}`);
+        const assignmentRes = await api.get(`/api/assignments/${assignmentId}`);
         setAssignment(assignmentRes.data);
         
         // Fetch submissions for this assignment
-        const submissionsRes = await axios.get(`/api/submissions/${assignmentId}`);
+        const submissionsRes = await api.get(`/api/submissions/${assignmentId}`);
         dispatchSubmissions({ type: 'INITIALIZE', submissions: submissionsRes.data });
         setLastUpdated(new Date());
         
@@ -126,7 +126,7 @@ const SubmissionList = () => {
       try {
         // Fetch only the submissions that are being evaluated
         const promises = updatingSubmissionIds.map(subId => 
-          axios.get(`/api/submissions/single/${subId}`)
+          api.get(`/api/submissions/single/${subId}`)
             .then(res => res.data)
             .catch(err => {
               console.error(`Error fetching submission ${subId}:`, err);
@@ -205,7 +205,7 @@ const SubmissionList = () => {
   // Manually fetch updates for all submissions
   const refreshAllSubmissions = async () => {
     try {
-      const submissionsRes = await axios.get(`/api/submissions/${assignmentId}`);
+      const submissionsRes = await api.get(`/api/submissions/${assignmentId}`);
       dispatchSubmissions({ type: 'INITIALIZE', submissions: submissionsRes.data });
       setLastUpdated(new Date());
       
@@ -252,7 +252,7 @@ const SubmissionList = () => {
       setUpdatingSubmissionIds(prev => [...prev, submission._id]);
       
       // Call the rerun API endpoint
-      const response = await axios.post(`/api/submissions/${submission._id}/rerun`);
+      const response = await api.post(`/api/submissions/${submission._id}/rerun`);
       
       if (response.data.success) {
         // Update the submission status to show it's being re-evaluated

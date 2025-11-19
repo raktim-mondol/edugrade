@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Spinner, Alert, Badge, InputGroup, Form, Dropdown } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import { 
   FiPlusCircle, FiUpload, FiBarChart2, FiRefreshCw, FiEdit, FiTrash2, 
   FiCalendar, FiBookOpen, FiSearch, FiFilter, FiChevronRight, FiCheck, 
@@ -50,7 +50,7 @@ const AssignmentList = () => {
     await Promise.all(
       assignmentList.map(async (assignment) => {
         try {
-          const statusResponse = await axios.get(`/api/assignments/${assignment._id}/status`);
+          const statusResponse = await api.get(`/api/assignments/${assignment._id}/status`);
           statuses[assignment._id] = statusResponse.data;
         } catch (err) {
           console.error(`Error fetching status for assignment ${assignment._id}:`, err);
@@ -69,7 +69,7 @@ const AssignmentList = () => {
         setLoading(true);
       }
 
-      const { data } = await axios.get('/api/assignments');
+      const { data } = await api.get('/api/assignments');
       const assignmentList = data.assignments || [];
       setAssignments(assignmentList);
       
@@ -156,7 +156,7 @@ const AssignmentList = () => {
     if (window.confirm('Are you sure you want to delete this assignment? All associated data including submissions and evaluations will be permanently deleted.')) {
       try {
         setDeleteLoading(id);
-        await axios.delete(`/api/assignments/${id}`);
+        await api.delete(`/api/assignments/${id}`);
         setAssignments(assignments.filter(assignment => assignment._id !== id));
         setDeleteLoading(null);
       } catch (err) {

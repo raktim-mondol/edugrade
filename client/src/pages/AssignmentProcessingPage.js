@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Card, Alert, Spinner, Button, ProgressBar, Badge, Form } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import { FiCheckCircle, FiAlertCircle, FiClock, FiInfo, FiArrowLeft, FiUpload, FiFileText, FiRefreshCw } from 'react-icons/fi';
 
 const AssignmentProcessingPage = () => {
@@ -58,7 +58,7 @@ const AssignmentProcessingPage = () => {
   useEffect(() => {
     const fetchAssignment = async () => {
       try {
-        const { data } = await axios.get(`/api/assignments/${id}`);
+        const { data } = await api.get(`/api/assignments/${id}`);
         setAssignment(data.assignment);
         setLoading(false);
       } catch (err) {
@@ -77,7 +77,7 @@ const AssignmentProcessingPage = () => {
     
     const checkProcessingStatus = async () => {
       try {
-        const { data } = await axios.get(`/api/assignments/${id}/status`);
+        const { data } = await api.get(`/api/assignments/${id}/status`);
         setLastUpdated(new Date());
         
         // Debug logging for all statuses
@@ -325,7 +325,7 @@ const AssignmentProcessingPage = () => {
       
       console.log(`Re-running orchestration for assignment ${id}, forceReread: ${forceReread}`);
       
-      const response = await axios.post(`/api/assignments/${id}/rerun-orchestration`, {
+      const response = await api.post(`/api/assignments/${id}/rerun-orchestration`, {
         forceReread: forceReread
       });
       
@@ -335,7 +335,7 @@ const AssignmentProcessingPage = () => {
       if (!pollingIntervalRef.current) {
         const intervalId = setInterval(async () => {
           try {
-            const { data } = await axios.get(`/api/assignments/${id}/status`);
+            const { data } = await api.get(`/api/assignments/${id}/status`);
             setProcessingStatus(data);
             setLastUpdated(new Date());
           } catch (err) {

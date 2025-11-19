@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Card, Alert, Spinner, Nav, Tab } from 'react-bootstrap';
 import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import FileDropzone from '../components/FileDropzone';
 import { FiUpload, FiUser, FiUsers, FiArrowLeft, FiInfo, FiFileText, FiCheck, FiBarChart2 } from 'react-icons/fi';
 
@@ -24,7 +24,7 @@ const SubmissionForm = () => {
   useEffect(() => {
     const fetchAssignment = async () => {
       try {
-        const { data } = await axios.get(`/api/assignments/${assignmentId}`);
+        const { data } = await api.get(`/api/assignments/${assignmentId}`);
         setAssignment(data.assignment); // Extract assignment from response object
         setLoadingAssignment(false);
       } catch (err) {
@@ -73,7 +73,7 @@ const SubmissionForm = () => {
       });
       
       // Use baseURL to ensure we're hitting the right endpoint
-      const { data } = await axios.post('/api/submissions/single', formData, {
+      const { data } = await api.post('/api/submissions/single', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
@@ -113,7 +113,7 @@ const SubmissionForm = () => {
         formData.append('submissions', file);
       });
       
-      await axios.post('/api/submissions/batch', formData, {
+      await api.post('/api/submissions/batch', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       

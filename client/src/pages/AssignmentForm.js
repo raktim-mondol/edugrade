@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Card, Alert, Spinner, Badge } from 'react-bootstrap';
 import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import FileDropzone from '../components/FileDropzone';
 import { FiInfo, FiCheckCircle, FiFileText, FiBook, FiCalendar, FiAlignLeft, FiArrowLeft, FiUpload, FiSave, FiPlus, FiTrash2, FiList } from 'react-icons/fi';
 
@@ -30,7 +30,7 @@ const AssignmentForm = () => {
     if (isEditing) {
       const fetchAssignment = async () => {
         try {
-          const { data } = await axios.get(`/api/assignments/${id}`);
+          const { data } = await api.get(`/api/assignments/${id}`);
           setTitle(data.assignment.title);
           setDescription(data.assignment.description);
           setCourse(data.assignment.course); 
@@ -141,13 +141,13 @@ const AssignmentForm = () => {
       let response;
       if (isEditing) {
         // If editing, update and go back to assignment list
-        response = await axios.put(`/api/assignments/${id}`, formData, {
+        response = await api.put(`/api/assignments/${id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         navigate('/assignments');
       } else {
         // If creating new, create and redirect to processing page
-        response = await axios.post('/api/assignments', formData, {
+        response = await api.post('/api/assignments', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         

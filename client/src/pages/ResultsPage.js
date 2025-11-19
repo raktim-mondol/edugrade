@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useReducer } from 'react';
 import { Container, Row, Col, Card, Button, Table, Spinner, Alert, Badge, Modal, Form, Nav, Tab } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import fileDownload from 'js-file-download';
 import { FiDownload, FiRefreshCw, FiCheckCircle, FiAlertCircle, FiClock, FiTrash2, FiSearch, FiBarChart2, FiFilter, FiArrowLeft, FiUsers, FiInfo, FiUpload } from 'react-icons/fi';
 
@@ -89,13 +89,13 @@ const ResultsPage = () => {
         setLoading(true);
         
         // Fetch assignment details
-        const assignmentRes = await axios.get(`/api/assignments/${assignmentId}`);
+        const assignmentRes = await api.get(`/api/assignments/${assignmentId}`);
         // Handle potential nested response structure
         const assignmentData = assignmentRes.data.assignment || assignmentRes.data;
         setAssignment(assignmentData);
         
         // Fetch submissions for this assignment
-        const submissionsRes = await axios.get(`/api/submissions/${assignmentId}`);
+        const submissionsRes = await api.get(`/api/submissions/${assignmentId}`);
         // Handle potential nested response structure
         const submissionsData = submissionsRes.data.submissions || submissionsRes.data || [];
         
@@ -190,7 +190,7 @@ const ResultsPage = () => {
       try {
         // Fetch only the submissions that are being evaluated
         const promises = updatingSubmissionIds.map(subId => 
-          axios.get(`/api/submissions/single/${subId}`)
+          api.get(`/api/submissions/single/${subId}`)
             .then(res => {
               // Extract submission from response and normalize status fields
               const submission = res.data.submission || res.data;
@@ -291,7 +291,7 @@ const ResultsPage = () => {
   // Manually refresh all data
   const refreshAllData = async () => {
     try {
-      const submissionsRes = await axios.get(`/api/submissions/${assignmentId}`);
+      const submissionsRes = await api.get(`/api/submissions/${assignmentId}`);
       
       // Handle potential nested response structure
       const submissionsData = submissionsRes.data.submissions || submissionsRes.data || [];
@@ -354,7 +354,7 @@ const ResultsPage = () => {
   const handleExportToExcel = async () => {
     try {
       setExporting(true);
-      const response = await axios.get(`/api/submissions/${assignmentId}/export`, {
+      const response = await api.get(`/api/submissions/${assignmentId}/export`, {
         responseType: 'blob'
       });
       
@@ -393,7 +393,7 @@ const ResultsPage = () => {
       setUpdatingSubmissionIds(prev => [...prev, submission._id]);
       
       // Call the rerun API endpoint
-      const response = await axios.post(`/api/submissions/${submission._id}/rerun`);
+      const response = await api.post(`/api/submissions/${submission._id}/rerun`);
       
       if (response.data.success) {
         // Update the submission status to show it's being re-evaluated
@@ -458,7 +458,7 @@ const ResultsPage = () => {
       // Delete submissions one by one
       for (const submissionId of selectedSubmissions) {
         try {
-          await axios.delete(`/api/submissions/${submissionId}`);
+          await api.delete(`/api/submissions/${submissionId}`);
           successfulDeletions.push(submissionId);
         } catch (err) {
           console.error(`Failed to delete submission ${submissionId}:`, err);
@@ -507,7 +507,7 @@ const ResultsPage = () => {
       const endpoint = `/api/submissions/${submissionId}`;
       console.log(`DELETE request to endpoint: ${endpoint}`);
       
-      const response = await axios.delete(endpoint);
+      const response = await api.delete(endpoint);
       console.log('Delete response:', response);
       
       if (response && response.status === 200) {

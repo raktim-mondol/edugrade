@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Spinner, Alert, Card } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import FileDropzone from '../components/FileDropzone';
 import { FiSend, FiXCircle, FiInfo, FiCode, FiFileText } from 'react-icons/fi';
 
@@ -31,7 +31,7 @@ const ProjectSubmissionForm = () => {
         }
         
         setFormLoading(true);
-        const response = await axios.get(`/api/projects/${projectId}`);
+        const response = await api.get(`/api/projects/${projectId}`);
         setProjectData(response.data.project);
         setError(null);
       } catch (err) {
@@ -104,7 +104,7 @@ const ProjectSubmissionForm = () => {
     }
     
     try {
-      await axios.post('/api/projects/project-submissions', formData, {
+      await api.post('/api/projects/project-submissions', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }

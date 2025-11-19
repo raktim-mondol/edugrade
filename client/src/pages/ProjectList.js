@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Spinner, Alert, Badge, Modal } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import { FiPlusCircle, FiCalendar, FiEdit, FiTrash2, FiInfo, FiUpload, FiBarChart2, FiRefreshCw, FiCode, FiFileText } from 'react-icons/fi';
 import './AssignmentList.css'; // Reusing the styles from AssignmentList
 
@@ -52,7 +52,7 @@ const ProjectList = () => {
         setLoading(true);
       }
 
-      const response = await axios.get('/api/projects');
+      const response = await api.get('/api/projects');
       setProjects(response.data.projects || []);
       
       // Fetch processing status for each project
@@ -60,7 +60,7 @@ const ProjectList = () => {
       await Promise.all(
         (response.data.projects || []).map(async (project) => {
           try {
-            const statusRes = await axios.get(`/api/projects/${project._id}/status`);
+            const statusRes = await api.get(`/api/projects/${project._id}/status`);
             statuses[project._id] = statusRes.data;
           } catch (err) {
             console.error(`Error fetching status for project ${project._id}:`, err);
@@ -90,7 +90,7 @@ const ProjectList = () => {
         await Promise.all(
           projects.map(async (project) => {
             try {
-              const response = await axios.get(`/api/projects/${project._id}/status`);
+              const response = await api.get(`/api/projects/${project._id}/status`);
               statuses[project._id] = response.data;
             } catch (err) {
               console.error(`Error fetching status for project ${project._id}:`, err);
@@ -119,7 +119,7 @@ const ProjectList = () => {
     
     setDeleteLoading(true);
     try {
-      await axios.delete(`/api/projects/${projectToDelete._id}`);
+      await api.delete(`/api/projects/${projectToDelete._id}`);
       setShowDeleteModal(false);
       // Refresh the project list after successful deletion
       fetchProjects();
