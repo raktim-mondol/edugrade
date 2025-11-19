@@ -18,11 +18,5 @@
       "src": "/(.*)",
       "dest": "/client/build/index.html"
     }
-  ],
-  "build": {
-    "env": {
-      "REACT_APP_API_URL": "@api_url",
-      "REACT_APP_CLERK_PUBLISHABLE_KEY": "@clerk_publishable_key"
-    }
-  }
+  ]
 }
