@@ -1,7 +1,7 @@
 import React from 'react';
 import { Plus, Folder, Trash2, Check, ChevronRight, LogOut } from './Icons';
 
-const Workspaces = ({ assignments, onCreateNew, onSelect, onDelete, onLogout }) => {
+const Workspaces = ({ assignments, onCreateNew, onSelect, onDelete, onLogout, userName, userImageUrl }) => {
   return (
     <div className="min-h-screen w-full bg-zinc-50 flex flex-col relative isolate overflow-x-hidden">
       <div className="fixed inset-0 bg-zinc-50 -z-10 pointer-events-none" />
@@ -15,7 +15,24 @@ const Workspaces = ({ assignments, onCreateNew, onSelect, onDelete, onLogout }) 
             <span className="font-semibold text-lg tracking-tight text-zinc-900">edugrade.ai</span>
           </div>
           <div className="flex items-center gap-4">
-            <div className="text-sm text-zinc-500">Welcome, Professor</div>
+            <div className="flex items-center gap-3">
+              {userImageUrl ? (
+                <img
+                  src={userImageUrl}
+                  alt={userName}
+                  className="w-8 h-8 rounded-full object-cover border border-zinc-200"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-zinc-200 flex items-center justify-center">
+                  <span className="text-xs font-medium text-zinc-600">
+                    {userName?.charAt(0)?.toUpperCase() || 'U'}
+                  </span>
+                </div>
+              )}
+              <div className="text-sm text-zinc-600">
+                Welcome, <span className="font-medium text-zinc-900">{userName || 'User'}</span>
+              </div>
+            </div>
             <button onClick={onLogout} className="p-2 hover:bg-zinc-100 rounded-full transition-colors" title="Logout">
               <LogOut className="w-4 h-4 text-zinc-400" />
             </button>

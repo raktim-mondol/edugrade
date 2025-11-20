@@ -1,46 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, ArrowRight, FileText, Sparkles, CheckCircle, Loader2, Brain, Zap, Search, X } from './Icons';
-
-const AuthModal = ({ isOpen, onClose, onLogin, onSignup }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-zinc-900/20 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full border border-zinc-100 animate-in fade-in zoom-in-95 duration-200">
-        <button onClick={onClose} className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-900 transition-colors">
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-zinc-200">
-            <Check className="w-6 h-6 text-white" />
-          </div>
-          <h3 className="text-xl font-bold text-zinc-900 tracking-tight">Welcome to EduGrade</h3>
-          <p className="text-sm text-zinc-500 mt-2 leading-relaxed">Sign in to access your workspace or create a new account to get started.</p>
-        </div>
-
-        <div className="space-y-3">
-          <button
-            onClick={onLogin}
-            className="w-full bg-zinc-900 text-white font-medium py-3 rounded-xl hover:bg-zinc-800 transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
-          >
-            Log In
-          </button>
-          <button
-            onClick={onSignup}
-            className="w-full bg-white text-zinc-900 border border-zinc-200 font-medium py-3 rounded-xl hover:bg-zinc-50 hover:border-zinc-300 transition-all"
-          >
-            Create Account
-          </button>
-        </div>
-
-        <div className="mt-6 text-center">
-          <p className="text-xs text-zinc-400">By continuing, you agree to our Terms of Service.</p>
-        </div>
-      </div>
-    </div>
-  );
-};
+import { Check, ArrowRight, FileText, Sparkles, CheckCircle, Loader2, Brain, Zap, Search } from './Icons';
 
 const GradingAnimation = () => {
   const [phase, setPhase] = useState(0);
@@ -177,7 +136,6 @@ const GradingAnimation = () => {
 
 const Landing = ({ onStart, onLogin, onDocs, onPrivacy, onTerms }) => {
   const [sloganIndex, setSloganIndex] = useState(0);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const slogans = ["in seconds.", "with precision.", "effortlessly."];
 
   useEffect(() => {
@@ -189,12 +147,6 @@ const Landing = ({ onStart, onLogin, onDocs, onPrivacy, onTerms }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-white selection:bg-zinc-900 selection:text-white">
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onLogin={onLogin}
-        onSignup={() => { setShowAuthModal(false); onStart(); }}
-      />
 
       <nav className="w-full px-6 py-6 flex justify-between items-center max-w-7xl mx-auto">
         <div className="flex items-center gap-2">
@@ -207,7 +159,7 @@ const Landing = ({ onStart, onLogin, onDocs, onPrivacy, onTerms }) => {
           <button onClick={onStart} className="text-sm font-medium text-zinc-500 hover:text-black transition-colors hidden md:block">Pricing</button>
           <button onClick={onDocs} className="text-sm font-medium text-zinc-500 hover:text-black transition-colors hidden md:block">Docs</button>
           <button
-            onClick={() => setShowAuthModal(true)}
+            onClick={onLogin}
             className="text-sm font-medium bg-zinc-100 hover:bg-zinc-200 px-4 py-2 rounded-lg transition-colors"
           >
             Sign In

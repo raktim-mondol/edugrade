@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth, useUser, SignIn, SignUp } from '@clerk/clerk-react';
 import Landing from './Landing';
 import SetupForm from './SetupForm';
 import Dashboard from './Dashboard';
@@ -16,42 +17,67 @@ const AppView = {
   DASHBOARD: 'DASHBOARD',
   DOCS: 'DOCS',
   PRIVACY: 'PRIVACY',
-  TERMS: 'TERMS'
+  TERMS: 'TERMS',
+  SIGN_IN: 'SIGN_IN',
+  SIGN_UP: 'SIGN_UP'
 };
 
 function GradeMindApp() {
+  const { isSignedIn, isLoaded, signOut } = useAuth();
+  const { user } = useUser();
   const [view, setView] = useState(AppView.LANDING);
   const [assignments, setAssignments] = useState([]);
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
 
-  // Load assignments from localStorage on mount
+  // Load assignments from localStorage on mount (keyed by user ID for data isolation)
   useEffect(() => {
-    const saved = localStorage.getItem('grademind-assignments');
-    if (saved) {
-      try {
-        setAssignments(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to load saved assignments:', e);
+    if (isSignedIn && user) {
+      const storageKey = `grademind-assignments-${user.id}`;
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          setAssignments(JSON.parse(saved));
+        } catch (e) {
+          console.error('Failed to load saved assignments:', e);
+        }
       }
     }
-  }, []);
+  }, [isSignedIn, user]);
 
-  // Save assignments to localStorage whenever they change
+  // Save assignments to localStorage whenever they change (keyed by user ID)
   useEffect(() => {
-    localStorage.setItem('grademind-assignments', JSON.stringify(assignments));
-  }, [assignments]);
+    if (isSignedIn && user) {
+      const storageKey = `grademind-assignments-${user.id}`;
+      localStorage.setItem(storageKey, JSON.stringify(assignments));
+    }
+  }, [assignments, isSignedIn, user]);
+
+  // Redirect to workspaces when user signs in
+  useEffect(() => {
+    if (isLoaded && isSignedIn && (view === AppView.SIGN_IN || view === AppView.SIGN_UP || view === AppView.LANDING)) {
+      setView(AppView.WORKSPACES);
+    }
+  }, [isLoaded, isSignedIn, view]);
 
   const handleStart = () => {
     setView(AppView.PRICING);
   };
 
-  const handleLogin = () => {
-    setView(AppView.WORKSPACES);
+  const handleSignIn = () => {
+    setView(AppView.SIGN_IN);
+  };
+
+  const handleSignUp = () => {
+    setView(AppView.SIGN_UP);
   };
 
   const handlePlanSelect = (plan) => {
     console.log(`Selected plan: ${plan}`);
-    setView(AppView.WORKSPACES);
+    if (isSignedIn) {
+      setView(AppView.WORKSPACES);
+    } else {
+      setView(AppView.SIGN_UP);
+    }
   };
 
   const handleCreateAssignment = (config) => {
@@ -81,23 +107,109 @@ function GradeMindApp() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut();
     setView(AppView.LANDING);
     setActiveAssignmentId(null);
+    setAssignments([]);
   };
 
   const activeAssignment = assignments.find(a => a.id === activeAssignmentId);
+
+  // Get user display name
+  const getUserDisplayName = () => {
+    if (!user) return 'User';
+    if (user.firstName) return user.firstName;
+    if (user.fullName) return user.fullName;
+    if (user.primaryEmailAddress) return user.primaryEmailAddress.emailAddress.split('@')[0];
+    return 'User';
+  };
+
+  // Show loading state while Clerk is initializing
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-zinc-500">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="font-sans antialiased text-zinc-900 bg-white min-h-screen selection:bg-zinc-900 selection:text-white">
       {view === AppView.LANDING && (
         <Landing
           onStart={handleStart}
-          onLogin={handleLogin}
+          onLogin={handleSignIn}
           onDocs={() => setView(AppView.DOCS)}
           onPrivacy={() => setView(AppView.PRIVACY)}
           onTerms={() => setView(AppView.TERMS)}
         />
+      )}
+
+      {view === AppView.SIGN_IN && (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-50 p-4">
+          <div className="mb-8">
+            <button
+              onClick={() => setView(AppView.LANDING)}
+              className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
+            >
+              &larr; Back to home
+            </button>
+          </div>
+          <SignIn
+            routing="hash"
+            signUpUrl="#sign-up"
+            afterSignInUrl="#workspaces"
+            appearance={{
+              elements: {
+                rootBox: 'mx-auto',
+                card: 'shadow-xl border border-zinc-100 rounded-2xl',
+              }
+            }}
+          />
+          <div className="mt-4 text-sm text-zinc-500">
+            Don't have an account?{' '}
+            <button
+              onClick={() => setView(AppView.SIGN_UP)}
+              className="text-zinc-900 font-medium hover:underline"
+            >
+              Sign up
+            </button>
+          </div>
+        </div>
+      )}
+
+      {view === AppView.SIGN_UP && (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-50 p-4">
+          <div className="mb-8">
+            <button
+              onClick={() => setView(AppView.LANDING)}
+              className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
+            >
+              &larr; Back to home
+            </button>
+          </div>
+          <SignUp
+            routing="hash"
+            signInUrl="#sign-in"
+            afterSignUpUrl="#workspaces"
+            appearance={{
+              elements: {
+                rootBox: 'mx-auto',
+                card: 'shadow-xl border border-zinc-100 rounded-2xl',
+              }
+            }}
+          />
+          <div className="mt-4 text-sm text-zinc-500">
+            Already have an account?{' '}
+            <button
+              onClick={() => setView(AppView.SIGN_IN)}
+              className="text-zinc-900 font-medium hover:underline"
+            >
+              Sign in
+            </button>
+          </div>
+        </div>
       )}
 
       {view === AppView.PRICING && (
@@ -125,24 +237,26 @@ function GradeMindApp() {
         />
       )}
 
-      {view === AppView.WORKSPACES && (
+      {view === AppView.WORKSPACES && isSignedIn && (
         <Workspaces
           assignments={assignments}
           onCreateNew={() => setView(AppView.SETUP)}
           onSelect={handleSelectAssignment}
           onDelete={handleDeleteAssignment}
           onLogout={handleLogout}
+          userName={getUserDisplayName()}
+          userImageUrl={user?.imageUrl}
         />
       )}
 
-      {view === AppView.SETUP && (
+      {view === AppView.SETUP && isSignedIn && (
         <SetupForm
           onComplete={handleCreateAssignment}
           onCancel={() => setView(AppView.WORKSPACES)}
         />
       )}
 
-      {view === AppView.DASHBOARD && activeAssignment && (
+      {view === AppView.DASHBOARD && activeAssignment && isSignedIn && (
         <Dashboard
           assignment={activeAssignment}
           onUpdateAssignment={handleUpdateAssignment}

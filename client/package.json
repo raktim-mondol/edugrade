@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@clerk/clerk-react": "^5.56.0",
     "axios": "^1.13.2",
     "lucide-react": "^0.554.0",
     "react": "^18.2.0",
