@@ -17,6 +17,7 @@ import ResultsPage from './pages/ResultsPage';
 import ProjectList from './pages/ProjectList';
 import ProjectForm from './pages/ProjectForm';
 import ProjectSubmissionForm from './pages/ProjectSubmissionForm';
+import GradeMindApp from './grademind/GradeMindApp';
 
 function App() {
   const { getToken } = useAuth();
@@ -28,34 +29,44 @@ function App() {
 
   return (
     <Router>
-      <Header />
-      <main className="py-3">
-        <Container>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/sign-in" element={<SignIn />} />
-            <Route path="/sign-up" element={<SignUp />} />
+      <Routes>
+        {/* GradeMind - New Modern UI (full-screen, no header) */}
+        <Route path="/grademind/*" element={<GradeMindApp />} />
 
-            {/* Protected routes - require authentication */}
-            <Route path="/assignments" element={<ProtectedRoute><AssignmentList /></ProtectedRoute>} />
-            <Route path="/assignments/new" element={<ProtectedRoute><AssignmentForm /></ProtectedRoute>} />
-            <Route path="/assignments/edit/:id" element={<ProtectedRoute><AssignmentForm /></ProtectedRoute>} />
-            <Route path="/assignments/:id/processing" element={<ProtectedRoute><AssignmentProcessingPage /></ProtectedRoute>} />
-            <Route path="/assignments/:id/submissions" element={<ProtectedRoute><SubmissionList /></ProtectedRoute>} />
-            <Route path="/assignments/:id/submit" element={<ProtectedRoute><SubmissionForm /></ProtectedRoute>} />
-            <Route path="/assignments/:id/results" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
+        {/* Legacy EduGrade routes with header */}
+        <Route path="/*" element={
+          <>
+            <Header />
+            <main className="py-3">
+              <Container>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/" element={<Home />} />
+                  <Route path="/sign-in" element={<SignIn />} />
+                  <Route path="/sign-up" element={<SignUp />} />
 
-            {/* Protected project routes */}
-            <Route path="/projects" element={<ProtectedRoute><ProjectList /></ProtectedRoute>} />
-            <Route path="/projects/new" element={<ProtectedRoute><ProjectForm /></ProtectedRoute>} />
-            <Route path="/projects/edit/:id" element={<ProtectedRoute><ProjectForm /></ProtectedRoute>} />
-            <Route path="/projects/:id/submit" element={<ProtectedRoute><ProjectSubmissionForm /></ProtectedRoute>} />
-            <Route path="/projects/:id/results" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
-            <Route path="/projects/:id/processing" element={<ProtectedRoute><AssignmentProcessingPage /></ProtectedRoute>} />
-          </Routes>
-        </Container>
-      </main>
+                  {/* Protected routes - require authentication */}
+                  <Route path="/assignments" element={<ProtectedRoute><AssignmentList /></ProtectedRoute>} />
+                  <Route path="/assignments/new" element={<ProtectedRoute><AssignmentForm /></ProtectedRoute>} />
+                  <Route path="/assignments/edit/:id" element={<ProtectedRoute><AssignmentForm /></ProtectedRoute>} />
+                  <Route path="/assignments/:id/processing" element={<ProtectedRoute><AssignmentProcessingPage /></ProtectedRoute>} />
+                  <Route path="/assignments/:id/submissions" element={<ProtectedRoute><SubmissionList /></ProtectedRoute>} />
+                  <Route path="/assignments/:id/submit" element={<ProtectedRoute><SubmissionForm /></ProtectedRoute>} />
+                  <Route path="/assignments/:id/results" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
+
+                  {/* Protected project routes */}
+                  <Route path="/projects" element={<ProtectedRoute><ProjectList /></ProtectedRoute>} />
+                  <Route path="/projects/new" element={<ProtectedRoute><ProjectForm /></ProtectedRoute>} />
+                  <Route path="/projects/edit/:id" element={<ProtectedRoute><ProjectForm /></ProtectedRoute>} />
+                  <Route path="/projects/:id/submit" element={<ProtectedRoute><ProjectSubmissionForm /></ProtectedRoute>} />
+                  <Route path="/projects/:id/results" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
+                  <Route path="/projects/:id/processing" element={<ProtectedRoute><AssignmentProcessingPage /></ProtectedRoute>} />
+                </Routes>
+              </Container>
+            </main>
+          </>
+        } />
+      </Routes>
     </Router>
   );
 }

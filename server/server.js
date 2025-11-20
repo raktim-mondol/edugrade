@@ -62,6 +62,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/assignments', require('./routes/assignments'));
 app.use('/api/submissions', require('./routes/submissions'));
 app.use('/api/projects', require('./routes/projects'));
+app.use('/api/grademind', require('./routes/grademind'));
 
 // Base route
 app.get('/', (req, res) => {
