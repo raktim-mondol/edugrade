@@ -59,6 +59,33 @@ function GradeMindApp() {
     }
   }, [isLoaded, isSignedIn, view]);
 
+  // Handle hash changes for Clerk's internal navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash === '#sign-in' || hash === '#/sign-in') {
+        setView(AppView.SIGN_IN);
+      } else if (hash === '#sign-up' || hash === '#/sign-up') {
+        setView(AppView.SIGN_UP);
+      } else if (hash === '#workspaces' || hash === '#/workspaces') {
+        if (isSignedIn) {
+          setView(AppView.WORKSPACES);
+        }
+      }
+      // Clear the hash after handling
+      if (hash) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    };
+
+    // Check initial hash
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [isSignedIn]);
+
   const handleStart = () => {
     setView(AppView.PRICING);
   };
