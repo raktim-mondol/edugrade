@@ -2458,7 +2458,51 @@ async function processAssignmentContent(extractedContent) {
 
   console.log(`   Formatted content length: ${contentText.length} chars`);
 
-  const prompt = `You are an expert assignment analyzer. Analyze the following extracted assignment content and provide a comprehensive structured output.
+  // Check for minimal content and provide appropriate prompt
+  const isMinimalContent = contentText.trim().length < 100;
+
+  if (isMinimalContent) {
+    console.log('⚠️ [Gemini] Warning: Minimal content detected. Using enhanced prompt for brief instructions.');
+  }
+
+  const prompt = isMinimalContent
+    ? `You are an expert assignment analyzer. The following content appears to be a brief assignment instruction or task description. Even though it's short, create a comprehensive structured output that would guide AI evaluation.
+
+ASSIGNMENT INSTRUCTION:
+${contentText}
+
+Based on this brief instruction, create a JSON object with the following structure. IMPORTANT: Since this is a brief instruction, you should:
+1. Create a meaningful title based on the task
+2. Expand the description to clarify the task requirements
+3. Create at least one question/task entry that captures what needs to be evaluated
+4. Make reasonable assumptions about evaluation criteria
+
+Return this JSON structure:
+{
+  "title": "Descriptive title based on the task",
+  "description": "Expanded description of what this assignment requires",
+  "questions": [
+    {
+      "number": "1",
+      "question": "${contentText}",
+      "requirements": ["List what should be evaluated", "Key criteria for assessment"],
+      "constraints": [],
+      "expected_output": "Description of what a good response should contain",
+      "points": null
+    }
+  ],
+  "total_points": null,
+  "has_marking_criteria": false,
+  "metadata": {
+    "course": null,
+    "deadline": null,
+    "submission_format": null
+  },
+  "note": "This assignment was created from brief instructions. Consider adding more detailed rubric and solution for better evaluation results."
+}
+
+IMPORTANT: Make the output useful for grading even with minimal input. Expand on what aspects should be evaluated based on the instruction.`
+    : `You are an expert assignment analyzer. Analyze the following extracted assignment content and provide a comprehensive structured output.
 
 EXTRACTED CONTENT:
 ${contentText}

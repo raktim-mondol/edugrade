@@ -96,21 +96,37 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const reader = new FileReader();
+      const fileExtension = file.name.split('.').pop().toLowerCase();
 
-      const content = await new Promise((resolve) => {
-        reader.onload = (event) => {
-          resolve(event.target.result);
-        };
-        reader.readAsText(file);
-      });
+      // For PDFs, store the file object for later upload
+      // For text files, read the content
+      if (fileExtension === 'pdf') {
+        newStudents.push({
+          id: crypto.randomUUID(),
+          name: file.name.replace(/\.[^/.]+$/, ""),
+          file: file, // Store the actual file object for PDF upload
+          content: `[PDF file: ${file.name}]`,
+          fileType: 'pdf',
+          status: 'pending'
+        });
+      } else {
+        // Read text files
+        const reader = new FileReader();
+        const content = await new Promise((resolve) => {
+          reader.onload = (event) => {
+            resolve(event.target.result);
+          };
+          reader.readAsText(file);
+        });
 
-      newStudents.push({
-        id: crypto.randomUUID(),
-        name: file.name.replace(/\.[^/.]+$/, ""),
-        content: content,
-        status: 'pending'
-      });
+        newStudents.push({
+          id: crypto.randomUUID(),
+          name: file.name.replace(/\.[^/.]+$/, ""),
+          content: content,
+          fileType: 'text',
+          status: 'pending'
+        });
+      }
     }
 
     const updatedSection = {
@@ -141,25 +157,43 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
         onUpdateAssignment({ ...assignment, sections: updatedSectionsState });
 
         try {
-          // Call backend API for evaluation
-          const response = await axios.post('/api/grademind/evaluate', {
-            config: assignment.config,
-            studentContent: studentsToGrade[i].content
-          });
+          let response;
+
+          // Check if this is a PDF file that needs to be uploaded
+          if (studentsToGrade[i].fileType === 'pdf' && studentsToGrade[i].file) {
+            // Use FormData to upload the PDF file
+            const formData = new FormData();
+            formData.append('file', studentsToGrade[i].file);
+            formData.append('config', JSON.stringify(assignment.config));
+
+            console.log(`📄 Uploading PDF for evaluation: ${studentsToGrade[i].name}`);
+
+            response = await axios.post('/api/grademind/evaluate', formData, {
+              headers: {
+                'Content-Type': 'multipart/form-data'
+              }
+            });
+          } else {
+            // Send text content directly
+            response = await axios.post('/api/grademind/evaluate', {
+              config: assignment.config,
+              studentContent: studentsToGrade[i].content
+            });
+          }
 
           studentsToGrade[i].result = response.data;
           studentsToGrade[i].status = 'completed';
         } catch (error) {
           console.error('Evaluation error:', error);
-          // Mock result for demo
+          // Show error but mark as failed
           studentsToGrade[i].result = {
-            score: Math.floor(Math.random() * 30) + 70,
+            score: 0,
             maxScore: assignment.config.totalScore || 100,
-            letterGrade: 'B',
-            feedback: 'Good work overall with room for improvement.',
-            strengths: ['Clear structure', 'Good examples'],
-            weaknesses: ['Could use more citations'],
-            actionableTips: 'Consider adding more supporting evidence.'
+            letterGrade: 'F',
+            feedback: `Evaluation failed: ${error.response?.data?.error || error.message}`,
+            strengths: [],
+            weaknesses: ['Evaluation could not be completed'],
+            actionableTips: 'Please try again or contact support if the issue persists.'
           };
           studentsToGrade[i].status = 'completed';
         }
