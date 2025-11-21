@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, useUser, SignIn, SignUp } from '@clerk/clerk-react';
-import axios from 'axios';
+import api from '../utils/api';
 import Landing from './Landing';
 import SetupForm from './SetupForm';
 import Dashboard from './Dashboard';
@@ -169,7 +169,7 @@ function GradeMindApp() {
       const token = await window.Clerk?.session?.getToken();
 
       // POST to backend API
-      const response = await axios.post('/api/assignments', formData, {
+      const response = await api.post('/assignments', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           ...(token && { 'Authorization': `Bearer ${token}` })
