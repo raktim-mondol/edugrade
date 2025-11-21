@@ -62,9 +62,8 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
     return () => clearInterval(interval);
   }, [assignment.backendId, processingStatus?.assignmentProcessingStatus, processingStatus?.rubricProcessingStatus, processingStatus?.solutionProcessingStatus]);
 
-  // Check if processing is complete
-  const isProcessingComplete = processingStatus?.evaluationReadyStatus === 'ready' ||
-                               processingStatus?.evaluationReadyStatus === 'partial';
+  // Check if processing is complete - only when ALL documents are processed
+  const isProcessingComplete = processingStatus?.evaluationReadyStatus === 'ready';
 
   useEffect(() => {
     if (assignment.sections.length === 0) {
@@ -710,10 +709,9 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                             <h2 className="text-2xl font-bold text-zinc-900 tracking-tight">{selectedStudent.name}</h2>
                             <p className="text-sm text-zinc-400 mt-1 font-mono">ID: {selectedStudent.id.substring(0, 8)}</p>
                           </div>
-                          <div className={`px-5 py-3 rounded-xl ${getGradeColor(selectedStudent.result.letterGrade)} flex flex-col items-center min-w-[80px]`}>
+                          <div className="px-5 py-3 rounded-xl bg-zinc-100 text-zinc-900 flex flex-col items-center min-w-[80px]">
                             <div className="text-3xl font-bold leading-none">{selectedStudent.result.score}</div>
                             <div className="text-xs font-semibold mt-1 opacity-80">/ {selectedStudent.result.maxScore}</div>
-                            <div className="text-xs font-semibold mt-1 opacity-80">{selectedStudent.result.letterGrade}</div>
                           </div>
                         </div>
                         <div className="p-8 overflow-y-auto space-y-8">
