@@ -10,6 +10,7 @@ const {
   uploadBatchSubmissions,
   getSubmissionById,
   exportToExcel,
+  exportToCsv,
   deleteSubmission,
   getSubmissionPdf,
   getSubmissionFileInfo,
@@ -85,6 +86,9 @@ router.delete('/:id', deleteSubmission);
 
 // GET /api/submissions/:assignmentId/export - Export submissions to Excel
 router.get('/:assignmentId/export', exportToExcel);
+
+// GET /api/submissions/:assignmentId/export-csv - Export submissions to CSV with detailed feedback
+router.get('/:assignmentId/export-csv', exportToCsv);
 
 // GET /api/submissions/:assignmentId - Get all submissions for an assignment
 router.get('/:assignmentId', getSubmissions);

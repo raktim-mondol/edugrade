@@ -1428,6 +1428,273 @@ exports.exportToExcel = async (req, res) => {
   }
 };
 
+/**
+ * Export submissions to CSV with detailed marking and feedback
+ *
+ * CSV Structure:
+ * - Student ID, Student Name
+ * - For each question/subsection: Score, Max Score, Feedback (why/where marks deducted)
+ * - Total Score, Total Possible
+ * - Overall strengths, areas for improvement
+ */
+exports.exportToCsv = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+
+    if (!isAuthenticated(req)) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
+
+    const { assignmentId } = req.params;
+
+    console.log(`\n=== CSV EXPORT: Assignment ID: ${assignmentId} ===`);
+
+    const assignment = await Assignment.findById(assignmentId);
+    if (!assignment) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+
+    // Verify ownership
+    if (!verifyOwnership(assignment.userId, req)) {
+      return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
+    }
+
+    const submissions = await Submission.find({ assignmentId }).sort({ studentId: 1 });
+
+    console.log(`Found ${submissions.length} submissions for CSV export`);
+
+    // Build the structure of all questions/subsections from all submissions
+    const questionStructure = new Map();
+
+    submissions.forEach(sub => {
+      let questionScores = sub.evaluationResult?.questionScores;
+
+      // Transform old format if needed
+      if ((!questionScores || !Array.isArray(questionScores) || questionScores.length === 0) &&
+          sub.evaluationResult?.criteriaGrades &&
+          Array.isArray(sub.evaluationResult.criteriaGrades) &&
+          sub.evaluationResult.criteriaGrades.length > 0) {
+        questionScores = transformCriteriaGradesToQuestionScores(sub.evaluationResult.criteriaGrades);
+      }
+
+      if (questionScores && Array.isArray(questionScores)) {
+        questionScores.forEach(qScore => {
+          const qNum = qScore.questionNumber || 'Unknown';
+
+          if (!questionStructure.has(qNum)) {
+            questionStructure.set(qNum, {
+              questionNumber: qNum,
+              maxScore: qScore.maxScore || 0,
+              subsections: new Map()
+            });
+          }
+
+          const question = questionStructure.get(qNum);
+          if (qScore.maxScore > question.maxScore) {
+            question.maxScore = qScore.maxScore;
+          }
+
+          if (qScore.subsections && qScore.subsections.length > 0) {
+            qScore.subsections.forEach(subsec => {
+              const subsecKey = subsec.subsectionNumber || '';
+              if (!question.subsections.has(subsecKey)) {
+                question.subsections.set(subsecKey, {
+                  subsectionNumber: subsecKey,
+                  maxScore: subsec.maxScore || 0
+                });
+              } else {
+                const existing = question.subsections.get(subsecKey);
+                if (subsec.maxScore > existing.maxScore) {
+                  existing.maxScore = subsec.maxScore;
+                }
+              }
+            });
+          }
+        });
+      }
+    });
+
+    // Sort questions and convert to array
+    const sortedQuestions = Array.from(questionStructure.values()).sort((a, b) => {
+      const numA = parseInt(a.questionNumber) || 0;
+      const numB = parseInt(b.questionNumber) || 0;
+      return numA - numB;
+    });
+
+    // Build CSV headers
+    const headers = ['Student ID', 'Student Name'];
+    const subHeaders = ['', '']; // For the second row showing max scores
+
+    // Add columns for each question/subsection
+    sortedQuestions.forEach(q => {
+      const subsections = Array.from(q.subsections.values()).sort((a, b) => {
+        // Sort subsections: numeric first, then alphabetic
+        const aNum = parseInt(a.subsectionNumber);
+        const bNum = parseInt(b.subsectionNumber);
+        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+        return String(a.subsectionNumber).localeCompare(String(b.subsectionNumber));
+      });
+
+      if (subsections.length > 0) {
+        subsections.forEach(subsec => {
+          let label;
+          if (/^\d+$/.test(subsec.subsectionNumber)) {
+            label = `Q${q.questionNumber}.${subsec.subsectionNumber}`;
+          } else if (subsec.subsectionNumber) {
+            label = `Q${q.questionNumber}(${subsec.subsectionNumber})`;
+          } else {
+            label = `Q${q.questionNumber}`;
+          }
+
+          headers.push(`${label} Score`);
+          headers.push(`${label} Feedback`);
+          subHeaders.push(`Max: ${subsec.maxScore}`);
+          subHeaders.push('');
+        });
+      } else {
+        headers.push(`Q${q.questionNumber} Score`);
+        headers.push(`Q${q.questionNumber} Feedback`);
+        subHeaders.push(`Max: ${q.maxScore}`);
+        subHeaders.push('');
+      }
+    });
+
+    // Add total and overall feedback columns
+    headers.push('Total Score', 'Total Possible', 'Percentage', 'Strengths', 'Areas for Improvement');
+    subHeaders.push('', '', '', '', '');
+
+    // Build CSV rows
+    const rows = [headers, subHeaders];
+
+    submissions.forEach(sub => {
+      const row = [
+        sub.studentId || 'N/A',
+        sub.studentName || 'N/A'
+      ];
+
+      // Get question scores
+      let questionScores = sub.evaluationResult?.questionScores;
+      if ((!questionScores || !Array.isArray(questionScores) || questionScores.length === 0) &&
+          sub.evaluationResult?.criteriaGrades &&
+          Array.isArray(sub.evaluationResult.criteriaGrades) &&
+          sub.evaluationResult.criteriaGrades.length > 0) {
+        questionScores = transformCriteriaGradesToQuestionScores(sub.evaluationResult.criteriaGrades);
+      }
+
+      // Create a map for easy lookup
+      const scoresMap = new Map();
+      if (questionScores && Array.isArray(questionScores)) {
+        questionScores.forEach(qScore => {
+          const qNum = qScore.questionNumber || 'Unknown';
+          scoresMap.set(qNum, qScore);
+        });
+      }
+
+      // Fill in scores for each question/subsection
+      sortedQuestions.forEach(q => {
+        const qScore = scoresMap.get(q.questionNumber);
+        const subsections = Array.from(q.subsections.values()).sort((a, b) => {
+          const aNum = parseInt(a.subsectionNumber);
+          const bNum = parseInt(b.subsectionNumber);
+          if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+          return String(a.subsectionNumber).localeCompare(String(b.subsectionNumber));
+        });
+
+        if (subsections.length > 0) {
+          subsections.forEach(subsec => {
+            // Find matching subsection in student's scores
+            let earnedScore = 0;
+            let feedback = '';
+
+            if (qScore && qScore.subsections) {
+              const matchingSubsec = qScore.subsections.find(s =>
+                s.subsectionNumber === subsec.subsectionNumber
+              );
+              if (matchingSubsec) {
+                earnedScore = matchingSubsec.earnedScore || 0;
+                feedback = matchingSubsec.feedback || '';
+
+                // Add context about marks lost if applicable
+                const marksLost = (matchingSubsec.maxScore || 0) - earnedScore;
+                if (marksLost > 0 && feedback) {
+                  feedback = `[-${marksLost}] ${feedback}`;
+                }
+              }
+            }
+
+            row.push(earnedScore);
+            row.push(feedback);
+          });
+        } else {
+          // Question without subsections
+          let earnedScore = 0;
+          let feedback = '';
+
+          if (qScore) {
+            earnedScore = qScore.earnedScore || 0;
+            feedback = qScore.feedback || '';
+
+            const marksLost = (qScore.maxScore || 0) - earnedScore;
+            if (marksLost > 0 && feedback) {
+              feedback = `[-${marksLost}] ${feedback}`;
+            }
+          }
+
+          row.push(earnedScore);
+          row.push(feedback);
+        }
+      });
+
+      // Add totals and overall feedback
+      const totalEarned = sub.evaluationResult?.overallGrade || 0;
+      const totalPossible = sub.evaluationResult?.totalPossible || assignment.totalPoints || 100;
+      const percentage = totalPossible > 0 ? ((totalEarned / totalPossible) * 100).toFixed(1) : '0.0';
+
+      const strengths = sub.evaluationResult?.strengths
+        ? (Array.isArray(sub.evaluationResult.strengths)
+            ? sub.evaluationResult.strengths.join('; ')
+            : sub.evaluationResult.strengths)
+        : '';
+
+      const improvements = sub.evaluationResult?.areasForImprovement
+        ? (Array.isArray(sub.evaluationResult.areasForImprovement)
+            ? sub.evaluationResult.areasForImprovement.join('; ')
+            : sub.evaluationResult.areasForImprovement)
+        : '';
+
+      row.push(totalEarned, totalPossible, `${percentage}%`, strengths, improvements);
+      rows.push(row);
+    });
+
+    // Convert to CSV string
+    const csvContent = rows.map(row =>
+      row.map(cell => {
+        // Escape quotes and wrap in quotes if contains comma, quote, or newline
+        const cellStr = String(cell === null || cell === undefined ? '' : cell);
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n') || cellStr.includes('\r')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(',')
+    ).join('\n');
+
+    // Send CSV response
+    const filename = `${assignment.title.replace(/[^a-z0-9]/gi, '_')}_detailed_marks.csv`;
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csvContent);
+
+    console.log(`✅ CSV export completed: ${filename}`);
+
+  } catch (error) {
+    console.error('Error exporting to CSV:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'An error occurred while exporting data to CSV: ' + error.message });
+    }
+  }
+};
+
 // Get converted PDF for a submission (if IPYNB was converted)
 exports.getSubmissionPdf = async (req, res) => {
   try {

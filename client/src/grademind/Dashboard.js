@@ -258,6 +258,44 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
     setIsProcessing(false);
   };
 
+  const exportCsv = async () => {
+    if (!assignment.backendId) {
+      alert('Assignment not yet saved to backend');
+      return;
+    }
+
+    try {
+      const token = await window.Clerk?.session?.getToken();
+      const response = await api.get(`/submissions/${assignment.backendId}/export-csv`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        responseType: 'blob'
+      });
+
+      // Create download link
+      const blob = new Blob([response.data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Extract filename from Content-Disposition header or use default
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'detailed_marks.csv';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^";\n]+)"?/);
+        if (match) filename = match[1];
+      }
+
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export CSV: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
   const getGradeColor = (grade) => {
     if (!grade) return 'bg-zinc-100 text-zinc-500';
     if (grade.startsWith('A')) return 'bg-zinc-900 text-white';
@@ -458,7 +496,10 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                   </button>
                 )}
                 {activeSection?.students.length > 0 && activeSection?.students.every(s => s.status === 'completed') && (
-                  <button className="flex items-center gap-2 bg-zinc-100 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-200 transition-all">
+                  <button
+                    onClick={exportCsv}
+                    className="flex items-center gap-2 bg-zinc-100 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-200 transition-all"
+                  >
                     <Download className="w-4 h-4" />
                     Export CSV
                   </button>
