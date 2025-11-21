@@ -68,14 +68,32 @@ function handleGeminiResponse(res, result, config) {
 
   let evaluation;
   try {
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      evaluation = JSON.parse(jsonMatch[0]);
+    // Try multiple methods to extract JSON
+    let jsonString = null;
+
+    // Method 1: Look for JSON in markdown code block
+    const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      jsonString = codeBlockMatch[1].trim();
+    }
+
+    // Method 2: Look for raw JSON object
+    if (!jsonString) {
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        jsonString = jsonMatch[0];
+      }
+    }
+
+    if (jsonString) {
+      evaluation = JSON.parse(jsonString);
     } else {
+      console.error('No JSON found in Gemini response. Response text:', responseText.substring(0, 500));
       throw new Error('No JSON found in response');
     }
   } catch (parseError) {
     console.error('Failed to parse Gemini response:', parseError);
+    console.error('Response text (first 500 chars):', responseText.substring(0, 500));
     evaluation = {
       score: Math.floor(Math.random() * 20) + 70,
       maxScore: config.totalScore || 100,
