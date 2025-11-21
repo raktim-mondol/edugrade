@@ -62,12 +62,12 @@ function GradeMindApp() {
   // Handle hash changes for Clerk's internal navigation
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash;
-      if (hash === '#sign-in' || hash === '#/sign-in') {
+      const hash = window.location.hash.toLowerCase();
+      if (hash.includes('sign-in')) {
         setView(AppView.SIGN_IN);
-      } else if (hash === '#sign-up' || hash === '#/sign-up') {
+      } else if (hash.includes('sign-up')) {
         setView(AppView.SIGN_UP);
-      } else if (hash === '#workspaces' || hash === '#/workspaces') {
+      } else if (hash.includes('workspaces')) {
         if (isSignedIn) {
           setView(AppView.WORKSPACES);
         }
