@@ -3,13 +3,22 @@ const mongoose = require('mongoose');
 const sectionSchema = new mongoose.Schema({
   title: {
     type: String,
-    required: true,
+    required: false,
     trim: true
   },
   description: {
     type: String,
     required: false,
     trim: true
+  },
+  // AI grading configuration
+  selectedModels: {
+    type: [String],
+    default: ['gemini-2.5-pro']
+  },
+  useAverageGrading: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -27,7 +36,8 @@ const assignmentSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: true
+    required: false,
+    default: ''
   },
   course: {
     type: String,
