@@ -25,6 +25,8 @@ const storage = multer.diskStorage({
       uploadPath = path.join(__dirname, '..', 'uploads', 'solutions');
     } else if (file.fieldname === 'rubric') {
       uploadPath = path.join(__dirname, '..', 'uploads', 'rubrics');
+    } else if (file.fieldname === 'questions') {
+      uploadPath = path.join(__dirname, '..', 'uploads', 'questions');
     }
     
     // Create directory if it doesn't exist
@@ -63,6 +65,7 @@ router.post('/:id/rerun-orchestration', rerunOrchestration);
 router.post('/',
   upload.fields([
     { name: 'assignment', maxCount: 1 },
+    { name: 'questions', maxCount: 1 },
     { name: 'solution', maxCount: 1 },
     { name: 'rubric', maxCount: 1 }
   ]),
@@ -73,6 +76,7 @@ router.post('/',
 router.put('/:id',
   upload.fields([
     { name: 'assignment', maxCount: 1 },
+    { name: 'questions', maxCount: 1 },
     { name: 'solution', maxCount: 1 },
     { name: 'rubric', maxCount: 1 }
   ]),

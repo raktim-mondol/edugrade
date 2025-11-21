@@ -138,6 +138,15 @@ function GradeMindApp() {
         formData.append('assignment', blob, 'assignment.txt');
       }
 
+      // Handle questions file
+      if (config.questionsFile) {
+        const blob = base64ToBlob(config.questionsFile.data, config.questionsFile.mimeType);
+        formData.append('questions', blob, config.questionsFile.name);
+      } else if (config.questions) {
+        const blob = new Blob([config.questions], { type: 'text/plain' });
+        formData.append('questions', blob, 'questions.txt');
+      }
+
       // Handle rubric file
       if (config.rubricFile) {
         const blob = base64ToBlob(config.rubricFile.data, config.rubricFile.mimeType);

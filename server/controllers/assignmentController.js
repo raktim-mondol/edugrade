@@ -10,6 +10,7 @@ const {
 } = require('../config/queue');
 const { isConnected } = require('../config/db');
 const { getUserId, isAuthenticated, verifyOwnership } = require('../utils/authHelper');
+const { extractWithRetry, formatExtractedContent, isConfigured: isLandingAIConfigured } = require('../utils/landingAIService');
 
 // Create a new assignment
 exports.createAssignment = async (req, res) => {
@@ -31,6 +32,7 @@ exports.createAssignment = async (req, res) => {
 
     // Get file paths
     const assignmentFilePath = req.files?.assignment?.[0]?.path;
+    const questionsFilePath = req.files?.questions?.[0]?.path;
     const rubricFilePath = req.files?.rubric?.[0]?.path;
     const solutionFilePath = req.files?.solution?.[0]?.path;
 
@@ -85,9 +87,11 @@ exports.createAssignment = async (req, res) => {
       questionStructure: parsedQuestionStructure,
       sections: parsedSections,
       assignmentFile: assignmentFilePath,
+      questionsFile: questionsFilePath,
       rubricFile: rubricFilePath,
       solutionFile: solutionFilePath,
       processingStatus: 'pending',
+      questionsProcessingStatus: questionsFilePath ? 'pending' : 'not_applicable',
       rubricProcessingStatus: rubricFilePath ? 'pending' : 'pending', // Will extract from assignment if no separate file
       solutionProcessingStatus: solutionFilePath ? 'pending' : 'not_applicable',
       rubricExtractionSource: rubricFilePath ? 'separate_file' : 'not_available' // Will be updated during processing
@@ -152,6 +156,47 @@ exports.createAssignment = async (req, res) => {
          }
       }
 
+      // Process questions file if available (using Landing AI for PDF extraction)
+      if (questionsFilePath) {
+         try {
+            assignment.questionsProcessingStatus = 'processing';
+            assignment.questionsProcessingStartedAt = new Date();
+            await assignment.save();
+            console.log('📋 Processing questions file:', questionsFilePath);
+
+            // Check if it's a PDF file
+            const isPDF = questionsFilePath.toLowerCase().endsWith('.pdf');
+
+            if (isPDF && isLandingAIConfigured()) {
+               // Extract content using Landing AI
+               const extractedData = await extractWithRetry(questionsFilePath);
+               const formattedContent = formatExtractedContent(extractedData);
+
+               assignment.extractedQuestions = extractedData;
+               assignment.processedQuestions = formattedContent;
+               console.log('✅ Questions PDF extracted via Landing AI');
+            } else if (isPDF) {
+               // Fallback: read PDF as-is (Gemini can process it later)
+               console.log('⚠️ Landing AI not configured, storing PDF path for later processing');
+               assignment.processedQuestions = { pdfPath: questionsFilePath };
+            } else {
+               // Text file - read content directly
+               const textContent = await fs.readFile(questionsFilePath, 'utf-8');
+               assignment.processedQuestions = textContent;
+               console.log('✅ Questions text file read successfully');
+            }
+
+            assignment.questionsProcessingStatus = 'completed';
+            assignment.questionsProcessingCompletedAt = new Date();
+            await assignment.save();
+         } catch (questionsError) {
+            console.error(`Error processing questions file ${questionsFilePath}:`, questionsError);
+            assignment.questionsProcessingStatus = 'failed';
+            assignment.questionsProcessingError = questionsError.message || 'Error processing questions file.';
+            await assignment.save();
+         }
+      }
+
     } catch (processingError) {
       console.error('Error during PDF processing job queueing:', processingError);
 
@@ -165,6 +210,10 @@ exports.createAssignment = async (req, res) => {
       if (solutionFilePath && assignment.solutionProcessingStatus === 'pending') {
         assignment.solutionProcessingStatus = 'failed';
         assignment.solutionProcessingError = 'Dependent assignment processing failed.';
+      }
+      if (questionsFilePath && assignment.questionsProcessingStatus === 'pending') {
+        assignment.questionsProcessingStatus = 'failed';
+        assignment.questionsProcessingError = 'Dependent assignment processing failed.';
       }
 
       try {

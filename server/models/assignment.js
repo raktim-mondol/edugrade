@@ -60,6 +60,9 @@ const assignmentSchema = new mongoose.Schema({
   solutionFile: {
     type: String
   },
+  questionsFile: {
+    type: String
+  },
   // Question structure information
   totalPoints: {
     type: Number,
@@ -94,6 +97,11 @@ const assignmentSchema = new mongoose.Schema({
     enum: ['pending', 'processing', 'completed', 'failed', 'not_applicable'],
     default: 'not_applicable'
   },
+  questionsProcessingStatus: {
+    type: String,
+    enum: ['pending', 'processing', 'completed', 'failed', 'not_applicable'],
+    default: 'not_applicable'
+  },
   // Overall evaluation readiness status
   evaluationReadyStatus: {
     type: String,
@@ -104,6 +112,7 @@ const assignmentSchema = new mongoose.Schema({
   processingError: String,
   rubricProcessingError: String,
   solutionProcessingError: String,
+  questionsProcessingError: String,
   // Timestamps for processing
   processingStartedAt: Date,
   processingCompletedAt: Date,
@@ -111,14 +120,18 @@ const assignmentSchema = new mongoose.Schema({
   rubricProcessingCompletedAt: Date,
   solutionProcessingStartedAt: Date,
   solutionProcessingCompletedAt: Date,
+  questionsProcessingStartedAt: Date,
+  questionsProcessingCompletedAt: Date,
   // Extracted content from Landing AI
   extractedContent: mongoose.Schema.Types.Mixed,
   extractedRubric: mongoose.Schema.Types.Mixed,
   extractedSolution: mongoose.Schema.Types.Mixed,
+  extractedQuestions: mongoose.Schema.Types.Mixed,
   // Processed data from Gemini API
   processedData: mongoose.Schema.Types.Mixed,
   processedRubric: mongoose.Schema.Types.Mixed,
   processedSolution: mongoose.Schema.Types.Mixed,
+  processedQuestions: mongoose.Schema.Types.Mixed,
   // Rubric extraction tracking
   rubricExtractionSource: {
     type: String,
