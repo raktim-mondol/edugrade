@@ -8,6 +8,8 @@ const { extractWithRetry, formatExtractedContent, isConfigured: isLandingAIConfi
 const { Assignment } = require('../models/assignment');
 const { updateAssignmentEvaluationReadiness, checkAndTriggerOrchestration } = require('../utils/assignmentUtils');
 const mongoose = require('mongoose');
+const fs = require('fs').promises;
+const path = require('path');
 
 // Process solutions from the queue
 solutionProcessingQueue.process(async (job) => {
@@ -29,8 +31,24 @@ solutionProcessingQueue.process(async (job) => {
     let processedSolution;
     let extractedSolution = null;
 
-    // Check if Landing AI is configured for two-stage processing
-    if (isLandingAIConfigured()) {
+    // Check file extension to determine processing method
+    const fileExtension = path.extname(pdfFilePath).toLowerCase();
+    const isTextFile = ['.txt', '.text'].includes(fileExtension);
+
+    if (isTextFile) {
+      // Handle text files directly
+      console.log(`📝 Processing text file for solution of assignment ${assignmentId}`);
+      const textContent = await fs.readFile(pdfFilePath, 'utf-8');
+      processedSolution = await processSolutionContent(textContent);
+
+      // Update the assignment in the database with the processed solution
+      await Assignment.findByIdAndUpdate(assignmentId, {
+        processedSolution,
+        solutionProcessingStatus: 'completed',
+        solutionProcessingCompletedAt: new Date()
+      });
+    } else if (isLandingAIConfigured()) {
+      // Check if Landing AI is configured for two-stage processing
       console.log(`🔄 Using two-stage processing for solution of assignment ${assignmentId}`);
 
       // Stage 1: Extract content via Landing AI

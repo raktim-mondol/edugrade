@@ -9,6 +9,8 @@ const { extractWithRetry, formatExtractedContent, isConfigured: isLandingAIConfi
 const { Assignment } = require('../models/assignment');
 const { updateAssignmentEvaluationReadiness, checkAndTriggerOrchestration } = require('../utils/assignmentUtils');
 const mongoose = require('mongoose');
+const fs = require('fs').promises;
+const path = require('path');
 
 // Process assignments from the queue
 assignmentProcessingQueue.process(async (job) => {
@@ -30,8 +32,24 @@ assignmentProcessingQueue.process(async (job) => {
     let processedData;
     let extractedContent = null;
 
-    // Check if Landing AI is configured for two-stage processing
-    if (isLandingAIConfigured()) {
+    // Check file extension to determine processing method
+    const fileExtension = path.extname(pdfFilePath).toLowerCase();
+    const isTextFile = ['.txt', '.text'].includes(fileExtension);
+
+    if (isTextFile) {
+      // Handle text files directly
+      console.log(`📝 Processing text file for assignment ${assignmentId}`);
+      const textContent = await fs.readFile(pdfFilePath, 'utf-8');
+      processedData = await processAssignmentContent(textContent);
+
+      // Update the assignment in the database with the processed data
+      await Assignment.findByIdAndUpdate(assignmentId, {
+        processedData,
+        processingStatus: 'completed',
+        processingCompletedAt: new Date()
+      });
+    } else if (isLandingAIConfigured()) {
+      // Check if Landing AI is configured for two-stage processing
       console.log(`🔄 Using two-stage processing for assignment ${assignmentId}`);
 
       // Stage 1: Extract content via Landing AI
@@ -80,8 +98,12 @@ assignmentProcessingQueue.process(async (job) => {
 
         let extractedRubric;
 
-        // Use extracted content if available (two-stage processing)
-        if (extractedContent && isLandingAIConfigured()) {
+        // Use extracted content if available (two-stage processing) or if it's a text file
+        if (isTextFile) {
+          console.log(`📝 Extracting rubric from text file content...`);
+          const textContent = await fs.readFile(pdfFilePath, 'utf-8');
+          extractedRubric = await extractRubricFromContent(textContent, assignment.totalPoints);
+        } else if (extractedContent && isLandingAIConfigured()) {
           console.log(`🔄 Extracting rubric from already-extracted assignment content...`);
           const formattedContent = formatExtractedContent(extractedContent);
           extractedRubric = await extractRubricFromContent(formattedContent, assignment.totalPoints);

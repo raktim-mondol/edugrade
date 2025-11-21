@@ -8,6 +8,8 @@ const { extractWithRetry, formatExtractedContent, isConfigured: isLandingAIConfi
 const { Assignment } = require('../models/assignment');
 const { updateAssignmentEvaluationReadiness, checkAndTriggerOrchestration } = require('../utils/assignmentUtils');
 const mongoose = require('mongoose');
+const fs = require('fs').promises;
+const path = require('path');
 
 // Process rubrics from the queue
 rubricProcessingQueue.process(async (job) => {
@@ -35,8 +37,26 @@ rubricProcessingQueue.process(async (job) => {
     let processedRubric;
     let extractedRubric = null;
 
-    // Check if Landing AI is configured for two-stage processing
-    if (isLandingAIConfigured()) {
+    // Check file extension to determine processing method
+    const fileExtension = path.extname(pdfFilePath).toLowerCase();
+    const isTextFile = ['.txt', '.text'].includes(fileExtension);
+
+    if (isTextFile) {
+      // Handle text files directly
+      console.log(`📝 Processing text file for rubric of assignment ${assignmentId}`);
+      const textContent = await fs.readFile(pdfFilePath, 'utf-8');
+      processedRubric = await processRubricContent(textContent, totalPoints);
+
+      // Update the assignment in the database with the processed rubric
+      await Assignment.findByIdAndUpdate(assignmentId, {
+        processedRubric,
+        rubricProcessingStatus: 'completed',
+        rubricProcessingCompletedAt: new Date(),
+        rubricExtractionSource: 'separate_file',
+        rubricExtractionNotes: 'Processed from text file'
+      });
+    } else if (isLandingAIConfigured()) {
+      // Check if Landing AI is configured for two-stage processing
       console.log(`🔄 Using two-stage processing for rubric of assignment ${assignmentId}`);
 
       // Stage 1: Extract content via Landing AI

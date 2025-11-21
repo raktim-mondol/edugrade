@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, useUser, SignIn, SignUp } from '@clerk/clerk-react';
+import axios from 'axios';
 import Landing from './Landing';
 import SetupForm from './SetupForm';
 import Dashboard from './Dashboard';
@@ -107,16 +108,94 @@ function GradeMindApp() {
     }
   };
 
-  const handleCreateAssignment = (config) => {
-    const newAssignment = {
-      id: crypto.randomUUID(),
-      config,
-      sections: [],
-      createdAt: Date.now()
-    };
-    setAssignments(prev => [...prev, newAssignment]);
-    setActiveAssignmentId(newAssignment.id);
-    setView(AppView.DASHBOARD);
+  const handleCreateAssignment = async (config) => {
+    try {
+      // Create FormData for multipart upload
+      const formData = new FormData();
+
+      // Add basic fields
+      formData.append('title', config.title);
+      formData.append('totalPoints', config.totalScore || 100);
+
+      // Helper to convert base64 to Blob
+      const base64ToBlob = (base64Data, mimeType) => {
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        return new Blob([byteArray], { type: mimeType });
+      };
+
+      // Handle description/assignment file
+      if (config.descriptionFile) {
+        const blob = base64ToBlob(config.descriptionFile.data, config.descriptionFile.mimeType);
+        formData.append('assignment', blob, config.descriptionFile.name);
+      } else if (config.description) {
+        // Create a text file from description
+        const blob = new Blob([config.description], { type: 'text/plain' });
+        formData.append('assignment', blob, 'assignment.txt');
+      }
+
+      // Handle rubric file
+      if (config.rubricFile) {
+        const blob = base64ToBlob(config.rubricFile.data, config.rubricFile.mimeType);
+        formData.append('rubric', blob, config.rubricFile.name);
+      } else if (config.rubric) {
+        const blob = new Blob([config.rubric], { type: 'text/plain' });
+        formData.append('rubric', blob, 'rubric.txt');
+      }
+
+      // Handle solution file
+      if (config.solutionFile) {
+        const blob = base64ToBlob(config.solutionFile.data, config.solutionFile.mimeType);
+        formData.append('solution', blob, config.solutionFile.name);
+      } else if (config.solution) {
+        const blob = new Blob([config.solution], { type: 'text/plain' });
+        formData.append('solution', blob, 'solution.txt');
+      }
+
+      // Add AI config as JSON in sections
+      const sections = [{
+        selectedModels: config.selectedModels || ['gemini-2.5-flash'],
+        useAverageGrading: config.useAverageGrading || false
+      }];
+      formData.append('sections', JSON.stringify(sections));
+
+      console.log('📤 Sending assignment to backend API...');
+
+      // Get auth token from Clerk
+      const token = await window.Clerk?.session?.getToken();
+
+      // POST to backend API
+      const response = await axios.post('/api/assignments', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+
+      console.log('✅ Assignment created:', response.data);
+
+      // Create local assignment object with backend ID
+      const newAssignment = {
+        id: response.data.assignment._id,
+        config,
+        sections: [],
+        createdAt: Date.now(),
+        backendId: response.data.assignment._id,
+        processingStatus: response.data.assignment.processingStatus
+      };
+
+      setAssignments(prev => [...prev, newAssignment]);
+      setActiveAssignmentId(newAssignment.id);
+      setView(AppView.DASHBOARD);
+
+    } catch (error) {
+      console.error('❌ Error creating assignment:', error);
+      alert(`Failed to create assignment: ${error.response?.data?.error || error.message}`);
+    }
   };
 
   const handleUpdateAssignment = (updatedAssignment) => {
