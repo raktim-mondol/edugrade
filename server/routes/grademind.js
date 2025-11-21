@@ -71,13 +71,23 @@ function handleGeminiResponse(res, result, config) {
     // Try multiple methods to extract JSON
     let jsonString = null;
 
-    // Method 1: Look for JSON in markdown code block
+    // Method 1: Look for JSON in markdown code block (greedy match for content)
     const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (codeBlockMatch) {
+    if (codeBlockMatch && codeBlockMatch[1]) {
       jsonString = codeBlockMatch[1].trim();
     }
 
-    // Method 2: Look for raw JSON object
+    // Method 2: If code block found but empty, try removing backticks and parsing
+    if (!jsonString && responseText.includes('```')) {
+      // Remove all markdown code block markers and try to find JSON
+      const cleanedText = responseText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        jsonString = jsonMatch[0];
+      }
+    }
+
+    // Method 3: Look for raw JSON object anywhere in the response
     if (!jsonString) {
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -85,8 +95,22 @@ function handleGeminiResponse(res, result, config) {
       }
     }
 
+    // Method 4: If response starts with ```json, extract everything after it until closing ```
+    if (!jsonString && responseText.trim().startsWith('```')) {
+      const lines = responseText.split('\n');
+      const startIdx = lines.findIndex(line => line.trim().startsWith('```'));
+      const endIdx = lines.findLastIndex(line => line.trim() === '```');
+      if (startIdx !== -1 && endIdx > startIdx) {
+        jsonString = lines.slice(startIdx + 1, endIdx).join('\n').trim();
+      } else if (startIdx !== -1) {
+        // No closing ```, take everything after the opening
+        jsonString = lines.slice(startIdx + 1).join('\n').trim();
+      }
+    }
+
     if (jsonString) {
       evaluation = JSON.parse(jsonString);
+      console.log('✅ Successfully parsed Gemini JSON response');
     } else {
       console.error('No JSON found in Gemini response. Response text:', responseText.substring(0, 500));
       throw new Error('No JSON found in response');
