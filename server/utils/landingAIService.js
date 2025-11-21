@@ -33,11 +33,13 @@ async function enforceRateLimit() {
  */
 async function extractPDFContent(pdfPath) {
   if (!LANDING_AI_API_KEY) {
+    console.log('⚠️ LANDING_AI_API_KEY is not configured - will use direct Gemini processing');
     throw new Error('LANDING_AI_API_KEY is not configured');
   }
 
   // Verify file exists
   if (!fs.existsSync(pdfPath)) {
+    console.error(`❌ PDF file not found: ${pdfPath}`);
     throw new Error(`PDF file not found: ${pdfPath}`);
   }
 
@@ -49,6 +51,8 @@ async function extractPDFContent(pdfPath) {
 
   try {
     console.log(`🔄 Landing AI: Extracting content from ${pdfPath}`);
+    console.log(`   Model: ${LANDING_AI_MODEL}`);
+    console.log(`   API URL: ${LANDING_AI_API_URL}`);
 
     const response = await axios.post(LANDING_AI_API_URL, form, {
       headers: {
@@ -60,7 +64,10 @@ async function extractPDFContent(pdfPath) {
       maxBodyLength: Infinity
     });
 
-    console.log('✅ Landing AI extraction completed for:', pdfPath);
+    console.log('✅ Landing AI extraction completed');
+    console.log(`   Response status: ${response.status}`);
+    console.log(`   Response data type: ${typeof response.data}`);
+    console.log(`   Response data keys: ${response.data ? Object.keys(response.data).join(', ') : 'N/A'}`);
 
     return {
       success: true,
@@ -72,8 +79,8 @@ async function extractPDFContent(pdfPath) {
     console.error('❌ Landing AI extraction failed:', error.message);
 
     if (error.response) {
-      console.error('Response status:', error.response.status);
-      console.error('Response data:', error.response.data);
+      console.error('   Response status:', error.response.status);
+      console.error('   Response data:', JSON.stringify(error.response.data).substring(0, 500));
     }
 
     throw new Error(`PDF extraction failed: ${error.message}`);
@@ -118,11 +125,17 @@ async function extractWithRetry(pdfPath, maxRetries = 3) {
  * @returns {string} Formatted text content
  */
 function formatExtractedContent(extractedData) {
+  console.log('📝 formatExtractedContent called');
+
   if (!extractedData || !extractedData.data) {
+    console.log('   ⚠️ No data to format, returning empty string');
     return '';
   }
 
   const data = extractedData.data;
+  console.log(`   Data type: ${typeof data}`);
+  console.log(`   Data keys: ${typeof data === 'object' ? Object.keys(data).join(', ') : 'N/A'}`);
+
   let formattedContent = '';
 
   // Handle different response formats from Landing AI
@@ -155,7 +168,12 @@ function formatExtractedContent(extractedData) {
  * @returns {boolean}
  */
 function isConfigured() {
-  return !!LANDING_AI_API_KEY;
+  const configured = !!LANDING_AI_API_KEY;
+  console.log(`🔧 Landing AI configured: ${configured}`);
+  if (!configured) {
+    console.log('   ⚠️ LANDING_AI_API_KEY not set - will use direct Gemini PDF processing');
+  }
+  return configured;
 }
 
 module.exports = {

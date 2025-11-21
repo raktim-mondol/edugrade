@@ -2448,9 +2448,15 @@ IMPORTANT: Your response must be ONLY valid JSON. Ensure all fields are present 
  * @returns {Promise<Object>} - Processed assignment structure
  */
 async function processAssignmentContent(extractedContent) {
+  console.log('🤖 [Gemini] processAssignmentContent called');
+  console.log(`   Content type: ${typeof extractedContent}`);
+  console.log(`   Content length: ${typeof extractedContent === 'string' ? extractedContent.length : JSON.stringify(extractedContent).length} chars`);
+
   const contentText = typeof extractedContent === 'string'
     ? extractedContent
     : JSON.stringify(extractedContent, null, 2);
+
+  console.log(`   Formatted content length: ${contentText.length} chars`);
 
   const prompt = `You are an expert assignment analyzer. Analyze the following extracted assignment content and provide a comprehensive structured output.
 
@@ -2488,12 +2494,18 @@ Important:
 - Be thorough and accurate in extraction`;
 
   try {
+    console.log('🤖 [Gemini] Calling Gemini API for assignment processing...');
     const response = await getGeminiResponse(prompt, true);
+    console.log(`🤖 [Gemini] Got response, length: ${response?.length || 0} chars`);
     const result = JSON.parse(cleanJsonResponse(response));
-    console.log('✅ Assignment content processed via Gemini');
+    console.log('✅ [Gemini] Assignment content processed successfully');
+    console.log(`   Title: ${result.title || 'N/A'}`);
+    console.log(`   Questions: ${result.questions?.length || 0}`);
+    console.log(`   Total points: ${result.total_points || 'N/A'}`);
     return result;
   } catch (error) {
-    console.error('❌ Error processing assignment content:', error);
+    console.error('❌ [Gemini] Error processing assignment content:', error.message);
+    console.error('   Full error:', error);
     throw new Error(`Failed to process assignment content: ${error.message}`);
   }
 }
@@ -2623,13 +2635,24 @@ Important:
  * @returns {Promise<Object>} - Evaluation results
  */
 async function evaluateWithExtractedContent(assignmentContent, rubricContent, solutionContent, extractedSubmission, studentId) {
+  console.log('🤖 [Gemini] evaluateWithExtractedContent called');
+  console.log(`   Student ID: ${studentId}`);
+  console.log(`   Assignment content: ${assignmentContent ? 'provided' : 'missing'}`);
+  console.log(`   Rubric content: ${rubricContent ? 'provided' : 'missing'}`);
+  console.log(`   Solution content: ${solutionContent ? 'provided' : 'missing'}`);
+  console.log(`   Submission type: ${typeof extractedSubmission}`);
+
   const submissionText = typeof extractedSubmission === 'string'
     ? extractedSubmission
     : JSON.stringify(extractedSubmission, null, 2);
 
+  console.log(`   Submission text length: ${submissionText.length} chars`);
+
   // Build question structure for reference
   const questionStructure = assignmentContent?.questions || assignmentContent?.questionStructure || [];
   const totalPossible = calculateTotalPossibleScore(assignmentContent, rubricContent);
+  console.log(`   Total possible score: ${totalPossible}`);
+  console.log(`   Questions in structure: ${questionStructure.length}`);
 
   const prompt = `You are an expert academic grader. Evaluate the following student submission against the assignment criteria.
 
@@ -2694,18 +2717,27 @@ CRITICAL REQUIREMENTS:
 6. Compare against the model solution where appropriate`;
 
   try {
+    console.log('🤖 [Gemini] Calling Gemini API for evaluation...');
     const response = await getGeminiResponse(prompt, true);
+    console.log(`🤖 [Gemini] Got evaluation response, length: ${response?.length || 0} chars`);
     const result = JSON.parse(cleanJsonResponse(response));
 
     // Validate result
     if (typeof result.overallGrade !== 'number' || !Array.isArray(result.criteriaGrades)) {
+      console.error('❌ [Gemini] Invalid evaluation result structure');
+      console.error('   overallGrade type:', typeof result.overallGrade);
+      console.error('   criteriaGrades is array:', Array.isArray(result.criteriaGrades));
       throw new Error('Invalid evaluation result structure');
     }
 
-    console.log(`✅ Evaluation completed for student ${studentId}: ${result.overallGrade}/${totalPossible}`);
+    console.log(`✅ [Gemini] Evaluation completed for student ${studentId}`);
+    console.log(`   Score: ${result.overallGrade}/${totalPossible}`);
+    console.log(`   Criteria grades: ${result.criteriaGrades?.length || 0}`);
+    console.log(`   Strengths: ${result.strengths?.length || 0}`);
     return result;
   } catch (error) {
-    console.error('❌ Error evaluating submission:', error);
+    console.error('❌ [Gemini] Error evaluating submission:', error.message);
+    console.error('   Full error:', error);
     throw new Error(`Failed to evaluate submission: ${error.message}`);
   }
 }
