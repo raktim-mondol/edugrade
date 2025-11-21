@@ -71,54 +71,78 @@ Respond ONLY with the JSON object, no additional text.`;
 
 // Helper function to handle Gemini response
 function handleGeminiResponse(res, result, config) {
+  // Check for valid response structure
+  if (!result || !result.response) {
+    console.error('❌ Invalid Gemini API response structure');
+    return res.status(500).json({
+      error: 'Invalid API response',
+      details: 'Gemini API returned an invalid response structure'
+    });
+  }
+
   const responseText = result.response.text();
+
+  // Check for empty response
+  if (!responseText || responseText.trim() === '') {
+    console.error('❌ Empty response from Gemini API');
+    return res.status(500).json({
+      error: 'Empty AI response',
+      details: 'Gemini API returned an empty response. The content may be too large or contain unsupported elements.'
+    });
+  }
+
+  console.log(`📥 Received Gemini response (${responseText.length} chars)`);
 
   let evaluation;
   try {
-    // Try multiple methods to extract JSON
+    // With responseMimeType: "application/json", the response should be direct JSON
+    // But we still try multiple methods for robustness
     let jsonString = null;
 
-    // Method 1: Look for JSON in markdown code block
-    const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (codeBlockMatch && codeBlockMatch[1] && codeBlockMatch[1].trim()) {
-      jsonString = codeBlockMatch[1].trim();
-      console.log('📝 Method 1: Found JSON in code block');
-    }
+    // Method 1: Try direct parsing (for responseMimeType: "application/json")
+    try {
+      evaluation = JSON.parse(responseText.trim());
+      console.log('📝 Method 1: Direct JSON parse successful');
+    } catch (directParseError) {
+      // Method 2: Look for JSON in markdown code block
+      const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch && codeBlockMatch[1] && codeBlockMatch[1].trim()) {
+        jsonString = codeBlockMatch[1].trim();
+        console.log('📝 Method 2: Found JSON in code block');
+      }
 
-    // Method 2: Strip markdown and find JSON object
-    if (!jsonString) {
-      // Remove markdown code block markers
-      let cleanedText = responseText
-        .replace(/```json\n?/gi, '')
-        .replace(/```\n?/g, '')
-        .trim();
+      // Method 3: Strip markdown and find JSON object
+      if (!jsonString) {
+        let cleanedText = responseText
+          .replace(/```json\n?/gi, '')
+          .replace(/```\n?/g, '')
+          .trim();
 
-      // Find the JSON object
-      const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        jsonString = jsonMatch[0];
-        console.log('📝 Method 2: Found JSON after stripping markdown');
+        const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          jsonString = jsonMatch[0];
+          console.log('📝 Method 3: Found JSON after stripping markdown');
+        }
+      }
+
+      // Method 4: Direct JSON object search in original text
+      if (!jsonString) {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          jsonString = jsonMatch[0];
+          console.log('📝 Method 4: Found raw JSON object');
+        }
+      }
+
+      if (jsonString) {
+        evaluation = JSON.parse(jsonString);
+      } else {
+        throw new Error('No JSON found in response');
       }
     }
 
-    // Method 3: Direct JSON object search in original text
-    if (!jsonString) {
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        jsonString = jsonMatch[0];
-        console.log('📝 Method 3: Found raw JSON object');
-      }
-    }
-
-    if (jsonString) {
-      evaluation = JSON.parse(jsonString);
-      console.log('✅ Successfully parsed Gemini JSON response');
-      console.log(`   Score: ${evaluation.score}/${evaluation.maxScore}`);
-    } else {
-      console.error('❌ No JSON found in Gemini response');
-      console.error('Response text (first 1000 chars):', responseText.substring(0, 1000));
-      throw new Error('No JSON found in response');
-    }
+    console.log('✅ Successfully parsed Gemini JSON response');
+    console.log(`   Score: ${evaluation.score}/${evaluation.maxScore}`);
   } catch (parseError) {
     console.error('❌ Failed to parse Gemini response:', parseError.message);
     console.error('Response text (first 1000 chars):', responseText.substring(0, 1000));
@@ -229,20 +253,33 @@ router.post('/evaluate', upload.single('file'), async (req, res) => {
     }
     lastCallTime = Date.now();
 
-    // Get the model
+    // Truncate student content if too large to prevent empty responses
+    const maxContentLength = 100000;
+    if (studentContent.length > maxContentLength) {
+      console.log(`⚠️ Truncating student content from ${studentContent.length} to ${maxContentLength} chars`);
+      studentContent = studentContent.substring(0, maxContentLength) + '\n\n... [content truncated due to length]';
+    }
+
+    // Get the model with proper JSON response configuration
     const modelName = config.selectedModels?.[0] || 'gemini-2.5-flash-preview-05-20';
-    const model = genAI.getGenerativeModel({ model: modelName });
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json",
+      },
+    });
 
     // Build the prompt
     const prompt = buildEvaluationPrompt(config, studentContent);
 
+    console.log(`📤 Sending evaluation request to Gemini (${modelName})`);
+    console.log(`   Prompt length: ${prompt.length} chars`);
+
     // Call Gemini
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.1,
-        maxOutputTokens: 2048,
-      },
     });
 
     return handleGeminiResponse(res, result, config);
