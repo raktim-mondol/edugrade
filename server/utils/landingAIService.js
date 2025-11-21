@@ -59,7 +59,7 @@ async function extractPDFContent(pdfPath) {
         'Authorization': `Bearer ${LANDING_AI_API_KEY}`,
         ...form.getHeaders()
       },
-      timeout: 120000, // 2 minute timeout for large PDFs
+      timeout: 300000, // 5 minute timeout for large PDFs and network latency
       maxContentLength: Infinity,
       maxBodyLength: Infinity
     });
