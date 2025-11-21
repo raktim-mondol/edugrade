@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Users, Brain, Loader2, FileText, CheckCircle, X, BarChart3, Download, ChevronLeft, Plus, LayoutGrid, Trash2, Pencil } from './Icons';
-import axios from 'axios';
+import api from '../utils/api';
 
 const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
   const [activeSectionId, setActiveSectionId] = useState(
@@ -168,14 +168,14 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
 
             console.log(`📄 Uploading PDF for evaluation: ${studentsToGrade[i].name}`);
 
-            response = await axios.post('/api/grademind/evaluate', formData, {
+            response = await api.post('/grademind/evaluate', formData, {
               headers: {
                 'Content-Type': 'multipart/form-data'
               }
             });
           } else {
             // Send text content directly
-            response = await axios.post('/api/grademind/evaluate', {
+            response = await api.post('/grademind/evaluate', {
               config: assignment.config,
               studentContent: studentsToGrade[i].content
             });
