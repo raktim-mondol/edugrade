@@ -476,51 +476,66 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-zinc-400" />
-                      <span className="font-medium">Assignment PDF</span>
+                  <div className="p-4 bg-zinc-50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-5 h-5 text-zinc-400" />
+                        <span className="font-medium">Assignment PDF</span>
+                      </div>
+                      <span className={`text-sm font-mono px-2 py-1 rounded ${
+                        processingStatus.assignmentProcessingStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                        processingStatus.assignmentProcessingStatus === 'processing' ? 'bg-blue-100 text-blue-700' :
+                        processingStatus.assignmentProcessingStatus === 'failed' ? 'bg-red-100 text-red-700' :
+                        'bg-zinc-100 text-zinc-500'
+                      }`}>
+                        {processingStatus.assignmentProcessingStatus}
+                      </span>
                     </div>
-                    <span className={`text-sm font-mono px-2 py-1 rounded ${
-                      processingStatus.assignmentProcessingStatus === 'completed' ? 'bg-green-100 text-green-700' :
-                      processingStatus.assignmentProcessingStatus === 'processing' ? 'bg-blue-100 text-blue-700' :
-                      processingStatus.assignmentProcessingStatus === 'failed' ? 'bg-red-100 text-red-700' :
-                      'bg-zinc-100 text-zinc-500'
-                    }`}>
-                      {processingStatus.assignmentProcessingStatus}
-                    </span>
+                    {processingStatus.assignmentProcessingStatus === 'failed' && processingStatus.processingError && (
+                      <p className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">{processingStatus.processingError}</p>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-zinc-400" />
-                      <span className="font-medium">Rubric</span>
+                  <div className="p-4 bg-zinc-50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-5 h-5 text-zinc-400" />
+                        <span className="font-medium">Rubric</span>
+                      </div>
+                      <span className={`text-sm font-mono px-2 py-1 rounded ${
+                        processingStatus.rubricProcessingStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                        processingStatus.rubricProcessingStatus === 'processing' ? 'bg-blue-100 text-blue-700' :
+                        processingStatus.rubricProcessingStatus === 'failed' ? 'bg-red-100 text-red-700' :
+                        processingStatus.rubricProcessingStatus === 'not_applicable' ? 'bg-zinc-100 text-zinc-400' :
+                        'bg-zinc-100 text-zinc-500'
+                      }`}>
+                        {processingStatus.rubricProcessingStatus}
+                      </span>
                     </div>
-                    <span className={`text-sm font-mono px-2 py-1 rounded ${
-                      processingStatus.rubricProcessingStatus === 'completed' ? 'bg-green-100 text-green-700' :
-                      processingStatus.rubricProcessingStatus === 'processing' ? 'bg-blue-100 text-blue-700' :
-                      processingStatus.rubricProcessingStatus === 'failed' ? 'bg-red-100 text-red-700' :
-                      processingStatus.rubricProcessingStatus === 'not_applicable' ? 'bg-zinc-100 text-zinc-400' :
-                      'bg-zinc-100 text-zinc-500'
-                    }`}>
-                      {processingStatus.rubricProcessingStatus}
-                    </span>
+                    {processingStatus.rubricProcessingStatus === 'failed' && processingStatus.rubricProcessingError && (
+                      <p className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">{processingStatus.rubricProcessingError}</p>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-zinc-400" />
-                      <span className="font-medium">Solution</span>
+                  <div className="p-4 bg-zinc-50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-5 h-5 text-zinc-400" />
+                        <span className="font-medium">Solution</span>
+                      </div>
+                      <span className={`text-sm font-mono px-2 py-1 rounded ${
+                        processingStatus.solutionProcessingStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                        processingStatus.solutionProcessingStatus === 'processing' ? 'bg-blue-100 text-blue-700' :
+                        processingStatus.solutionProcessingStatus === 'failed' ? 'bg-red-100 text-red-700' :
+                        processingStatus.solutionProcessingStatus === 'not_applicable' ? 'bg-zinc-100 text-zinc-400' :
+                        'bg-zinc-100 text-zinc-500'
+                      }`}>
+                        {processingStatus.solutionProcessingStatus}
+                      </span>
                     </div>
-                    <span className={`text-sm font-mono px-2 py-1 rounded ${
-                      processingStatus.solutionProcessingStatus === 'completed' ? 'bg-green-100 text-green-700' :
-                      processingStatus.solutionProcessingStatus === 'processing' ? 'bg-blue-100 text-blue-700' :
-                      processingStatus.solutionProcessingStatus === 'failed' ? 'bg-red-100 text-red-700' :
-                      processingStatus.solutionProcessingStatus === 'not_applicable' ? 'bg-zinc-100 text-zinc-400' :
-                      'bg-zinc-100 text-zinc-500'
-                    }`}>
-                      {processingStatus.solutionProcessingStatus}
-                    </span>
+                    {processingStatus.solutionProcessingStatus === 'failed' && processingStatus.solutionProcessingError && (
+                      <p className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">{processingStatus.solutionProcessingError}</p>
+                    )}
                   </div>
                 </div>
               </div>

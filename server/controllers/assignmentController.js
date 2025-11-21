@@ -451,6 +451,10 @@ exports.getProcessingStatus = async (req, res) => {
       solutionProcessingError: assignment.solutionProcessingError,
       orchestrationError: assignment.orchestrationError,
       evaluationReadyStatus: getEvaluationReadiness(assignment),
+      // Include processed data for display
+      processedData: assignment.processedData || null,
+      processedRubric: assignment.processedRubric || null,
+      processedSolution: assignment.processedSolution || null,
       orchestrationData: assignment.orchestratedData ? {
         completenessScore: assignment.orchestratedData.validation?.completenessScore || 0,
         isValid: assignment.orchestratedData.validation?.isValid || false,
