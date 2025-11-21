@@ -49,7 +49,22 @@ function GradeMindApp() {
   useEffect(() => {
     if (isSignedIn && user) {
       const storageKey = `grademind-assignments-${user.id}`;
-      localStorage.setItem(storageKey, JSON.stringify(assignments));
+      // Remove large file data before saving to localStorage to prevent quota errors
+      const assignmentsToSave = assignments.map(a => ({
+        ...a,
+        config: a.config ? {
+          ...a.config,
+          // Remove base64 file data - only keep file names
+          assignmentFile: a.config.assignmentFile ? { name: a.config.assignmentFile.name } : undefined,
+          rubricFile: a.config.rubricFile ? { name: a.config.rubricFile.name } : undefined,
+          solutionFile: a.config.solutionFile ? { name: a.config.solutionFile.name } : undefined,
+        } : a.config
+      }));
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(assignmentsToSave));
+      } catch (error) {
+        console.error('Failed to save assignments to localStorage:', error);
+      }
     }
   }, [assignments, isSignedIn, user]);
 
