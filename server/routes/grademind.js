@@ -53,10 +53,17 @@ Evaluate the submission and provide your response in the following JSON format:
   "score": <number between 0 and ${config.totalScore || 100}>,
   "maxScore": ${config.totalScore || 100},
   "letterGrade": "<A, B, C, D, or F>",
-  "feedback": "<comprehensive evaluation paragraph>",
-  "strengths": ["<strength 1>", "<strength 2>"],
-  "weaknesses": ["<weakness 1>", "<weakness 2>"],
-  "actionableTips": "<one specific piece of advice for improvement>"
+  "feedback": "<comprehensive evaluation summary paragraph>",
+  "strengths": ["<strength 1>", "<strength 2>", ...],
+  "weaknesses": ["<area for improvement 1>", "<area for improvement 2>", ...],
+  "actionableTips": "<one specific piece of advice for improvement>",
+  "lostMarks": [
+    {
+      "area": "<topic or section where marks were lost>",
+      "pointsLost": <number of points deducted>,
+      "reason": "<specific explanation of why marks were deducted>"
+    }
+  ]
 }
 
 Respond ONLY with the JSON object, no additional text.`;
@@ -127,6 +134,7 @@ function handleGeminiResponse(res, result, config) {
   evaluation.strengths = evaluation.strengths || [];
   evaluation.weaknesses = evaluation.weaknesses || [];
   evaluation.actionableTips = evaluation.actionableTips || 'Continue practicing and refining your work.';
+  evaluation.lostMarks = evaluation.lostMarks || [];
 
   return res.json(evaluation);
 }
