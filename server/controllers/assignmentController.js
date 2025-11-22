@@ -11,6 +11,7 @@ const {
 const { isConnected } = require('../config/db');
 const { getUserId, isAuthenticated, verifyOwnership } = require('../utils/authHelper');
 const { extractWithRetry, formatExtractedContent, isConfigured: isLandingAIConfigured } = require('../utils/landingAIService');
+const { getCache, setCache, deleteCache, cacheKeys, isRedisConnected } = require('../config/redis');
 
 // Create a new assignment
 exports.createAssignment = async (req, res) => {
@@ -431,7 +432,22 @@ exports.getProcessingStatus = async (req, res) => {
       return res.status(401).json({ error: 'User authentication required' });
     }
 
-    const assignment = await Assignment.findById(req.params.id);
+    const assignmentId = req.params.id;
+    const cacheKey = cacheKeys.assignmentStatus(assignmentId);
+
+    // Try to get from cache first
+    const cachedData = await getCache(cacheKey);
+    if (cachedData) {
+      // Verify ownership from cached data
+      if (!verifyOwnership(cachedData.userId, req)) {
+        return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
+      }
+      // Return cached response (without userId)
+      const { userId, ...responseData } = cachedData;
+      return res.status(200).json(responseData);
+    }
+
+    const assignment = await Assignment.findById(assignmentId);
 
     if (!assignment) {
       return res.status(404).json({ error: 'Assignment not found' });
@@ -441,20 +457,19 @@ exports.getProcessingStatus = async (req, res) => {
     if (!verifyOwnership(assignment.userId, req)) {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
-    
-    // Return the processing status and related statuses
-    res.status(200).json({
+
+    // Build response data
+    const responseData = {
       assignmentId: assignment._id,
       assignmentProcessingStatus: assignment.processingStatus,
       rubricProcessingStatus: assignment.rubricProcessingStatus,
       solutionProcessingStatus: assignment.solutionProcessingStatus,
-      orchestrationStatus: assignment.orchestrationStatus || 'not_needed',  // Changed default
+      orchestrationStatus: assignment.orchestrationStatus || 'not_needed',
       processingError: assignment.processingError,
       rubricProcessingError: assignment.rubricProcessingError,
       solutionProcessingError: assignment.solutionProcessingError,
       orchestrationError: assignment.orchestrationError,
       evaluationReadyStatus: getEvaluationReadiness(assignment),
-      // Include processed data for display
       processedData: assignment.processedData || null,
       processedRubric: assignment.processedRubric || null,
       processedSolution: assignment.processedSolution || null,
@@ -467,11 +482,27 @@ exports.getProcessingStatus = async (req, res) => {
       } : null,
       validationResults: assignment.validationResults || null,
       lastUpdated: assignment.updatedAt
-    });
+    };
+
+    // Cache the response (include userId for ownership verification)
+    // Use shorter TTL (10s) if still processing, longer (60s) if complete
+    const isProcessing = assignment.processingStatus === 'processing' ||
+                         assignment.rubricProcessingStatus === 'processing' ||
+                         assignment.solutionProcessingStatus === 'processing';
+    const ttl = isProcessing ? 10 : 60;
+
+    await setCache(cacheKey, { ...responseData, userId: assignment.userId }, ttl);
+
+    res.status(200).json(responseData);
   } catch (error) {
     console.error('Error retrieving assignment processing status:', error);
     res.status(500).json({ error: 'An error occurred while retrieving the assignment processing status' });
   }
+};
+
+// Helper to invalidate assignment cache (call after updates)
+exports.invalidateAssignmentCache = async (assignmentId) => {
+  await deleteCache(cacheKeys.assignmentStatus(assignmentId));
 };
 
 // Helper function to determine evaluation readiness

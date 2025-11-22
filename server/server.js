@@ -5,14 +5,15 @@ const dotenv = require('dotenv');
 const path = require('path');
 const fs = require('fs');
 const { connectDB, isConnected } = require('./config/db');
+const { initRedis } = require('./config/redis');
 
 // Import queue configuration
-const { 
+const {
   assignmentProcessingQueue,
-  rubricProcessingQueue, 
-  solutionProcessingQueue, 
-  submissionProcessingQueue, 
-  evaluationQueue 
+  rubricProcessingQueue,
+  solutionProcessingQueue,
+  submissionProcessingQueue,
+  evaluationQueue
 } = require('./config/queue');
 
 // Load environment variables
@@ -23,6 +24,9 @@ const app = express();
 
 // Connect to MongoDB
 connectDB();
+
+// Initialize Redis for caching
+initRedis();
 
 // Middlewares
 app.use(cors());
