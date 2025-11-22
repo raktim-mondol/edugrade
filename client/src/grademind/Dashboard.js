@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Users, Brain, Loader2, FileText, CheckCircle, X, BarChart3, Download, ChevronLeft, Plus, LayoutGrid, Trash2, Pencil } from './Icons';
+import { Upload, Users, Brain, Loader2, FileText, CheckCircle, X, BarChart3, Download, ChevronLeft, Plus, LayoutGrid, Trash2, Pencil, Cpu } from './Icons';
 import api from '../utils/api';
 
 const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
@@ -859,6 +859,24 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                               {selectedStudent.result.actionableTips}
                             </p>
                           </div>
+
+                          {selectedStudent.result.modelScores && Object.keys(selectedStudent.result.modelScores).length > 1 && (
+                            <div className="bg-purple-50/50 p-4 rounded-lg border border-purple-100/50">
+                              <h4 className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <Cpu className="w-3 h-3" /> Model Scores (Average: {selectedStudent.result.score})
+                              </h4>
+                              <div className="grid grid-cols-3 gap-3">
+                                {Object.entries(selectedStudent.result.modelScores).map(([model, score]) => (
+                                  <div key={model} className="bg-white p-3 rounded border border-purple-100 text-center">
+                                    <div className="text-lg font-bold text-zinc-900">{score}</div>
+                                    <div className="text-xs text-zinc-500 truncate" title={model}>
+                                      {model.replace('gemini-', '').replace('-latest', '')}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
                           <div className="pt-8 border-t border-zinc-100">
                             <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Submission Excerpt</h4>

@@ -203,7 +203,7 @@ router.post('/evaluate', upload.single('file'), async (req, res) => {
         studentContent = `[PDF file uploaded: ${req.file.originalname}. Please evaluate based on the file content.]`;
 
         // Use Gemini's file processing capability
-        const model = genAI.getGenerativeModel({ model: config.selectedModels?.[0] || 'gemini-2.5-flash-preview-05-20' });
+        const model = genAI.getGenerativeModel({ model: config.selectedModels?.[0] || 'gemini-2.5-pro' });
         const fileBuffer = fs.readFileSync(filePath);
         const base64File = fileBuffer.toString('base64');
 
@@ -259,8 +259,128 @@ router.post('/evaluate', upload.single('file'), async (req, res) => {
     }
     lastCallTime = Date.now();
 
-    // Get the model with proper JSON response configuration
-    const modelName = config.selectedModels?.[0] || 'gemini-2.5-flash-preview-05-20';
+    // Build the prompt
+    const prompt = buildEvaluationPrompt(config, studentContent);
+
+    // Get selected models (default to gemini-2.5-pro)
+    const selectedModels = config.selectedModels?.length > 0
+      ? config.selectedModels
+      : ['gemini-2.5-pro'];
+
+    const useAverageGrading = config.useAverageGrading && selectedModels.length > 1;
+
+    console.log(`📤 Sending evaluation request to Gemini`);
+    console.log(`   Models: ${selectedModels.join(', ')}`);
+    console.log(`   Average grading: ${useAverageGrading}`);
+    console.log(`   Content length: ${studentContent.length} chars`);
+
+    // If using average grading, call all models and average results
+    if (useAverageGrading) {
+      console.log(`🔄 Running evaluation with ${selectedModels.length} models for averaging...`);
+
+      const evaluations = [];
+      const modelResults = {};
+
+      for (const modelName of selectedModels) {
+        try {
+          // Rate limiting between model calls
+          const now = Date.now();
+          const timeSinceLastCall = now - lastCallTime;
+          if (timeSinceLastCall < RATE_LIMIT_DELAY) {
+            await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY - timeSinceLastCall));
+          }
+          lastCallTime = Date.now();
+
+          const model = genAI.getGenerativeModel({
+            model: modelName,
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 8192,
+              responseMimeType: "application/json",
+            },
+          });
+
+          console.log(`   📤 Calling model: ${modelName}`);
+          const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          });
+
+          const responseText = result.response.text();
+          let evaluation;
+
+          try {
+            evaluation = JSON.parse(responseText.trim());
+          } catch (parseError) {
+            // Try to extract JSON from code blocks
+            const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (codeBlockMatch) {
+              evaluation = JSON.parse(codeBlockMatch[1].trim());
+            } else {
+              const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                evaluation = JSON.parse(jsonMatch[0]);
+              } else {
+                throw parseError;
+              }
+            }
+          }
+
+          evaluations.push(evaluation);
+          modelResults[modelName] = evaluation.score;
+          console.log(`   ✅ ${modelName}: ${evaluation.score}/${evaluation.maxScore || config.totalScore || 100}`);
+        } catch (modelError) {
+          console.error(`   ❌ ${modelName} failed:`, modelError.message);
+          // Continue with other models
+        }
+      }
+
+      if (evaluations.length === 0) {
+        return res.status(500).json({
+          error: 'All models failed to evaluate',
+          details: 'No successful evaluations from any selected model'
+        });
+      }
+
+      // Average the scores
+      const avgScore = Math.round(evaluations.reduce((sum, e) => sum + e.score, 0) / evaluations.length);
+      const maxScore = config.totalScore || 100;
+
+      // Combine feedback from all models
+      const combinedStrengths = [...new Set(evaluations.flatMap(e => e.strengths || []))];
+      const combinedWeaknesses = [...new Set(evaluations.flatMap(e => e.weaknesses || []))];
+
+      // Use the most common letter grade
+      const grades = evaluations.map(e => e.letterGrade).filter(Boolean);
+      const gradeCount = grades.reduce((acc, g) => {
+        acc[g] = (acc[g] || 0) + 1;
+        return acc;
+      }, {});
+      const avgGrade = Object.entries(gradeCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'C';
+
+      // Combine lost marks from all evaluations
+      const allLostMarks = evaluations.flatMap(e => e.lostMarks || []);
+
+      const averagedEvaluation = {
+        score: avgScore,
+        maxScore: maxScore,
+        letterGrade: avgGrade,
+        feedback: `Average score from ${evaluations.length} models. ${evaluations[0]?.feedback || ''}`,
+        strengths: combinedStrengths.slice(0, 5),
+        weaknesses: combinedWeaknesses.slice(0, 5),
+        actionableTips: evaluations[0]?.actionableTips || 'Continue practicing and refining your work.',
+        lostMarks: allLostMarks,
+        modelScores: modelResults,
+        modelsUsed: selectedModels.filter(m => modelResults[m] !== undefined)
+      };
+
+      console.log(`✅ Averaged evaluation complete: ${avgScore}/${maxScore}`);
+      console.log(`   Individual scores: ${JSON.stringify(modelResults)}`);
+
+      return res.json(averagedEvaluation);
+    }
+
+    // Single model evaluation
+    const modelName = selectedModels[0];
     const model = genAI.getGenerativeModel({
       model: modelName,
       generationConfig: {
@@ -270,12 +390,7 @@ router.post('/evaluate', upload.single('file'), async (req, res) => {
       },
     });
 
-    // Build the prompt
-    const prompt = buildEvaluationPrompt(config, studentContent);
-
-    console.log(`📤 Sending evaluation request to Gemini (${modelName})`);
-    console.log(`   Content length: ${studentContent.length} chars`);
-    console.log(`   Prompt length: ${prompt.length} chars`);
+    console.log(`📤 Single model evaluation: ${modelName}`);
 
     // Call Gemini
     const result = await model.generateContent({
