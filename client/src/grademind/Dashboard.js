@@ -17,6 +17,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
   // Processing status state
   const [processingStatus, setProcessingStatus] = useState(null);
   const [showProcessedData, setShowProcessedData] = useState(false);
+  const [activeDataSection, setActiveDataSection] = useState('assignment'); // 'assignment', 'rubric', 'solution'
 
   const fileInputRef = useRef(null);
   const activeSection = assignment.sections.find(s => s.id === activeSectionId);
@@ -607,31 +608,91 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                   </button>
                 </div>
                 <div className="p-6 overflow-y-auto h-full">
-                  <div className="space-y-6">
+                  <div className="space-y-3">
+                    {/* Assignment Structure Accordion */}
                     {processingStatus?.processedData && (
-                      <div>
-                        <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Assignment Structure</h4>
-                        <pre className="bg-zinc-50 p-4 rounded-lg border border-zinc-100 text-xs font-mono text-zinc-700 overflow-x-auto max-h-64">
-                          {JSON.stringify(processingStatus.processedData, null, 2)}
-                        </pre>
+                      <div className="border border-zinc-200 rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => setActiveDataSection(activeDataSection === 'assignment' ? null : 'assignment')}
+                          className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
+                            activeDataSection === 'assignment' ? 'bg-zinc-100' : 'bg-zinc-50 hover:bg-zinc-100'
+                          }`}
+                        >
+                          <h4 className="text-xs font-bold text-zinc-600 uppercase tracking-wider">Assignment Structure</h4>
+                          <svg
+                            className={`w-4 h-4 text-zinc-400 transition-transform ${activeDataSection === 'assignment' ? 'rotate-180' : ''}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {activeDataSection === 'assignment' && (
+                          <div className="p-4 border-t border-zinc-200">
+                            <pre className="bg-zinc-50 p-4 rounded-lg border border-zinc-100 text-xs font-mono text-zinc-700 overflow-x-auto max-h-96">
+                              {JSON.stringify(processingStatus.processedData, null, 2)}
+                            </pre>
+                          </div>
+                        )}
                       </div>
                     )}
 
+                    {/* Rubric Criteria Accordion */}
                     {processingStatus?.processedRubric && (
-                      <div>
-                        <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Rubric Criteria</h4>
-                        <pre className="bg-zinc-50 p-4 rounded-lg border border-zinc-100 text-xs font-mono text-zinc-700 overflow-x-auto max-h-64">
-                          {JSON.stringify(processingStatus.processedRubric, null, 2)}
-                        </pre>
+                      <div className="border border-zinc-200 rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => setActiveDataSection(activeDataSection === 'rubric' ? null : 'rubric')}
+                          className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
+                            activeDataSection === 'rubric' ? 'bg-zinc-100' : 'bg-zinc-50 hover:bg-zinc-100'
+                          }`}
+                        >
+                          <h4 className="text-xs font-bold text-zinc-600 uppercase tracking-wider">Rubric Criteria</h4>
+                          <svg
+                            className={`w-4 h-4 text-zinc-400 transition-transform ${activeDataSection === 'rubric' ? 'rotate-180' : ''}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {activeDataSection === 'rubric' && (
+                          <div className="p-4 border-t border-zinc-200">
+                            <pre className="bg-zinc-50 p-4 rounded-lg border border-zinc-100 text-xs font-mono text-zinc-700 overflow-x-auto max-h-96">
+                              {JSON.stringify(processingStatus.processedRubric, null, 2)}
+                            </pre>
+                          </div>
+                        )}
                       </div>
                     )}
 
+                    {/* Solution Key Accordion */}
                     {processingStatus?.processedSolution && (
-                      <div>
-                        <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Solution Key</h4>
-                        <pre className="bg-zinc-50 p-4 rounded-lg border border-zinc-100 text-xs font-mono text-zinc-700 overflow-x-auto max-h-64">
-                          {JSON.stringify(processingStatus.processedSolution, null, 2)}
-                        </pre>
+                      <div className="border border-zinc-200 rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => setActiveDataSection(activeDataSection === 'solution' ? null : 'solution')}
+                          className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
+                            activeDataSection === 'solution' ? 'bg-zinc-100' : 'bg-zinc-50 hover:bg-zinc-100'
+                          }`}
+                        >
+                          <h4 className="text-xs font-bold text-zinc-600 uppercase tracking-wider">Solution Key</h4>
+                          <svg
+                            className={`w-4 h-4 text-zinc-400 transition-transform ${activeDataSection === 'solution' ? 'rotate-180' : ''}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {activeDataSection === 'solution' && (
+                          <div className="p-4 border-t border-zinc-200">
+                            <pre className="bg-zinc-50 p-4 rounded-lg border border-zinc-100 text-xs font-mono text-zinc-700 overflow-x-auto max-h-96">
+                              {JSON.stringify(processingStatus.processedSolution, null, 2)}
+                            </pre>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
