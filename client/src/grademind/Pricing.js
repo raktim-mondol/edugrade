@@ -12,7 +12,7 @@ const Pricing = ({ onSelectPlan, onBack }) => {
           <div className="w-6 h-6 bg-black rounded-sm flex items-center justify-center">
             <Check className="w-4 h-4 text-white" />
           </div>
-          <span className="font-semibold text-lg tracking-tight">edugrade.ai</span>
+          <span className="font-semibold text-lg tracking-tight">grademind.ai</span>
         </button>
         <button onClick={onBack} className="text-sm font-medium text-zinc-500 hover:text-black transition-colors flex items-center gap-1">
           <ChevronLeft className="w-4 h-4" /> Back

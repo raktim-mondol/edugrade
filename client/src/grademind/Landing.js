@@ -153,7 +153,7 @@ const Landing = ({ onStart, onLogin, onDocs, onPrivacy, onTerms }) => {
           <div className="w-6 h-6 bg-black rounded-sm flex items-center justify-center">
             <Check className="w-4 h-4 text-white" />
           </div>
-          <span className="font-semibold text-lg tracking-tight text-black">edugrade.ai</span>
+          <span className="font-semibold text-lg tracking-tight text-black">grademind.ai</span>
         </div>
         <div className="flex items-center gap-6">
           <button onClick={onStart} className="text-sm font-medium text-zinc-500 hover:text-black transition-colors hidden md:block">Pricing</button>
@@ -253,7 +253,7 @@ const Landing = ({ onStart, onLogin, onDocs, onPrivacy, onTerms }) => {
       <footer className="bg-white py-12 border-t border-zinc-100">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="text-sm text-zinc-400">
-            © 2024 edugrade.ai. All rights reserved.
+            © 2024 grademind.ai. All rights reserved.
           </div>
           <div className="flex gap-6 text-sm font-medium text-zinc-500">
             <button onClick={onPrivacy} className="hover:text-black transition-colors">Privacy</button>

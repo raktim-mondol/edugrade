@@ -208,7 +208,7 @@ Good:
             <div className="w-6 h-6 bg-black rounded-sm flex items-center justify-center">
               <Check className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-lg tracking-tight text-black">edugrade.ai</span>
+            <span className="font-semibold text-lg tracking-tight text-black">grademind.ai</span>
             <span className="px-2 py-0.5 bg-zinc-100 text-zinc-500 text-xs rounded-full font-mono border border-zinc-200 ml-2">DOCS</span>
           </div>
           <div className="flex items-center gap-4">

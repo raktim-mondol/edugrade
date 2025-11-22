@@ -10,7 +10,7 @@ const Terms = ({ onBack }) => {
             <div className="w-6 h-6 bg-black rounded-sm flex items-center justify-center">
               <Check className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-lg tracking-tight text-black">edugrade.ai</span>
+            <span className="font-semibold text-lg tracking-tight text-black">grademind.ai</span>
           </div>
           <button onClick={onBack} className="text-sm font-medium text-zinc-500 hover:text-black flex items-center gap-1">
             <ChevronLeft className="w-4 h-4" /> Back
@@ -67,7 +67,7 @@ const Terms = ({ onBack }) => {
             <p className="text-zinc-600 leading-relaxed">
               If you have any questions about these Terms, please contact us at:
               <br />
-              <a href="mailto:legal@edugrade.ai" className="text-black font-medium underline">legal@edugrade.ai</a>
+              <a href="mailto:legal@grademind.ai" className="text-black font-medium underline">legal@grademind.ai</a>
             </p>
           </section>
         </div>

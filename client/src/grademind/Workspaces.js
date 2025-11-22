@@ -12,7 +12,7 @@ const Workspaces = ({ assignments, onCreateNew, onSelect, onDelete, onLogout, us
             <div className="w-6 h-6 bg-zinc-900 rounded-sm flex items-center justify-center">
               <Check className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-lg tracking-tight text-zinc-900">edugrade.ai</span>
+            <span className="font-semibold text-lg tracking-tight text-zinc-900">grademind.ai</span>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
