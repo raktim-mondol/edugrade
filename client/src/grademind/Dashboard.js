@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Users, Brain, Loader2, FileText, CheckCircle, X, BarChart3, Download, ChevronLeft, Plus, LayoutGrid, Trash2, Pencil, Cpu } from './Icons';
+import { Upload, Users, Brain, Loader2, FileText, CheckCircle, X, BarChart3, Download, ChevronLeft, Plus, LayoutGrid, Trash2, Pencil, Cpu, Menu } from './Icons';
 import api from '../utils/api';
 
 const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
@@ -13,6 +13,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
   const [newSectionName, setNewSectionName] = useState('');
   const [editingSectionId, setEditingSectionId] = useState(null);
   const [tempSectionName, setTempSectionName] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Processing status state
   const [processingStatus, setProcessingStatus] = useState(null);
@@ -337,7 +338,20 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
-      <aside className="w-64 bg-zinc-50 border-r border-zinc-200 flex flex-col flex-shrink-0">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={`
+        fixed md:relative inset-y-0 left-0 z-50
+        w-64 bg-zinc-50 border-r border-zinc-200 flex flex-col flex-shrink-0
+        transform transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
         <div className="p-4 border-b border-zinc-200">
           <button
             onClick={onBack}
@@ -385,7 +399,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                 </form>
               ) : (
                 <button
-                  onClick={() => { setActiveSectionId(section.id); setSelectedStudent(null); }}
+                  onClick={() => { setActiveSectionId(section.id); setSelectedStudent(null); setSidebarOpen(false); }}
                   className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-all ${
                     activeSectionId === section.id
                       ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200'
@@ -448,10 +462,17 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 bg-white">
-        <header className="h-16 border-b border-zinc-100 flex items-center justify-between px-8 flex-shrink-0">
+        <header className="h-16 border-b border-zinc-100 flex items-center justify-between px-4 md:px-8 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-zinc-400">/</span>
-            <h2 className="font-semibold text-zinc-900">{activeSection?.name}</h2>
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-2 -ml-2 text-zinc-500 hover:text-zinc-900"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <span className="text-zinc-400 hidden md:inline">/</span>
+            <h2 className="font-semibold text-zinc-900 truncate">{activeSection?.name}</h2>
           </div>
 
           <div className="flex items-center gap-3">
@@ -512,7 +533,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden p-8">
+        <div className="flex-1 overflow-hidden p-4 md:p-8">
           {/* Show processing status if not complete */}
           {!isProcessingComplete && processingStatus && (
             <div className="h-full flex flex-col">
@@ -723,8 +744,8 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
               </div>
             </div>
           ) : isProcessingComplete && !showProcessedData && activeSection?.students.length > 0 ? (
-            <div className="flex gap-8 h-full">
-              <div className="flex-1 bg-white rounded-xl border border-zinc-200 overflow-hidden flex flex-col shadow-sm">
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 h-full overflow-auto lg:overflow-hidden">
+              <div className="lg:flex-1 bg-white rounded-xl border border-zinc-200 overflow-hidden flex flex-col shadow-sm min-h-[300px] lg:min-h-0">
                 <div className="p-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/30">
                   <h3 className="font-semibold text-sm text-zinc-900">Students ({activeSection.students.length})</h3>
                   {isProcessing && (
@@ -734,13 +755,13 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                     </div>
                   )}
                 </div>
-                <div className="overflow-y-auto flex-1">
-                  <table className="w-full text-sm text-left">
+                <div className="overflow-auto flex-1">
+                  <table className="w-full text-sm text-left min-w-[400px]">
                     <thead className="text-xs text-zinc-400 uppercase bg-white sticky top-0 border-b border-zinc-100">
                       <tr>
-                        <th className="px-6 py-3 font-medium">Name</th>
-                        <th className="px-6 py-3 font-medium">Status</th>
-                        <th className="px-6 py-3 font-medium text-right">Score (/{assignment.config.totalScore || 100})</th>
+                        <th className="px-4 md:px-6 py-3 font-medium">Name</th>
+                        <th className="px-4 md:px-6 py-3 font-medium">Status</th>
+                        <th className="px-4 md:px-6 py-3 font-medium text-right">Score (/{assignment.config.totalScore || 100})</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-50">
@@ -750,14 +771,14 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                           onClick={() => setSelectedStudent(student)}
                           className={`cursor-pointer transition-colors ${selectedStudent?.id === student.id ? 'bg-zinc-50' : 'hover:bg-zinc-50'}`}
                         >
-                          <td className="px-6 py-4 font-medium text-zinc-900">{student.name}</td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 md:px-6 py-4 font-medium text-zinc-900">{student.name}</td>
+                          <td className="px-4 md:px-6 py-4">
                             {student.status === 'pending' && <span className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-400"><div className="w-1.5 h-1.5 rounded-full bg-zinc-300" /> Pending</span>}
                             {student.status === 'grading' && <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><Loader2 className="w-3 h-3 animate-spin" /> Evaluating</span>}
                             {student.status === 'completed' && <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600"><CheckCircle className="w-3 h-3" /> Done</span>}
                             {student.status === 'error' && <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600"><X className="w-3 h-3" /> Error</span>}
                           </td>
-                          <td className="px-6 py-4 text-right font-mono text-zinc-600">
+                          <td className="px-4 md:px-6 py-4 text-right font-mono text-zinc-600">
                             {student.result ? student.result.score : '—'}
                           </td>
                         </tr>
@@ -767,7 +788,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                 </div>
               </div>
 
-              <div className="flex-[1.3] flex flex-col gap-6 h-full overflow-hidden">
+              <div className="lg:flex-[1.3] flex flex-col gap-4 lg:gap-6 lg:h-full lg:overflow-hidden">
                 {stats && !selectedStudent && (
                   <div className="bg-white rounded-xl border border-zinc-200 p-8 shadow-sm flex-shrink-0 animate-in fade-in">
                     <h3 className="font-semibold text-sm text-zinc-900 mb-6 flex items-center gap-2">
