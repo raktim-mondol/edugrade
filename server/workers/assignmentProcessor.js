@@ -15,13 +15,13 @@ const path = require('path');
 // Process assignments from the queue
 assignmentProcessingQueue.process(async (job) => {
   console.log(`Processing assignment job ${job.id}`);
-  
-  const { assignmentId, pdfFilePath } = job.data;
-  
-  if (!assignmentId || !pdfFilePath) {
-    throw new Error('Missing required data for assignment processing');
+
+  const { assignmentId, pdfFilePath, assignmentText } = job.data;
+
+  if (!assignmentId || (!pdfFilePath && !assignmentText)) {
+    throw new Error('Missing required data for assignment processing (need either file or text)');
   }
-  
+
   try {
     // Update processing status to in-progress
     await Assignment.findByIdAndUpdate(assignmentId, {
@@ -32,11 +32,23 @@ assignmentProcessingQueue.process(async (job) => {
     let processedData;
     let extractedContent = null;
 
-    // Check file extension to determine processing method
-    const fileExtension = path.extname(pdfFilePath).toLowerCase();
+    // Check if we have direct text content or a file
+    const hasDirectText = assignmentText && assignmentText.trim().length > 0;
+    const fileExtension = pdfFilePath ? path.extname(pdfFilePath).toLowerCase() : '';
     const isTextFile = ['.txt', '.text'].includes(fileExtension);
 
-    if (isTextFile) {
+    if (hasDirectText) {
+      // Handle direct text content from form
+      console.log(`📝 Processing direct text content for assignment ${assignmentId}`);
+      processedData = await processAssignmentContent(assignmentText);
+
+      // Update the assignment in the database with the processed data
+      await Assignment.findByIdAndUpdate(assignmentId, {
+        processedData,
+        processingStatus: 'completed',
+        processingCompletedAt: new Date()
+      });
+    } else if (isTextFile) {
       // Handle text files directly
       console.log(`📝 Processing text file for assignment ${assignmentId}`);
       const textContent = await fs.readFile(pdfFilePath, 'utf-8');
@@ -98,8 +110,11 @@ assignmentProcessingQueue.process(async (job) => {
 
         let extractedRubric;
 
-        // Use extracted content if available (two-stage processing) or if it's a text file
-        if (isTextFile) {
+        // Use extracted content if available (two-stage processing), direct text, or text file
+        if (hasDirectText) {
+          console.log(`📝 Extracting rubric from direct text content...`);
+          extractedRubric = await extractRubricFromContent(assignmentText, assignment.totalPoints);
+        } else if (isTextFile) {
           console.log(`📝 Extracting rubric from text file content...`);
           const textContent = await fs.readFile(pdfFilePath, 'utf-8');
           extractedRubric = await extractRubricFromContent(textContent, assignment.totalPoints);

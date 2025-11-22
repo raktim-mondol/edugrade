@@ -52,7 +52,12 @@ const assignmentSchema = new mongoose.Schema({
   },
   assignmentFile: {
     type: String,
-    required: true
+    required: false
+  },
+  assignmentText: {
+    type: String,
+    required: false,
+    default: ''
   },
   rubricFile: {
     type: String

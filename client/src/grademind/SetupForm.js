@@ -7,6 +7,7 @@ const SetupForm = ({ onComplete, onCancel }) => {
     title: '',
     description: '',
     totalScore: 100,
+    assignmentText: '',
     rubric: '',
     solution: '',
     selectedModels: ['gemini-2.5-pro'],
@@ -72,7 +73,7 @@ const SetupForm = ({ onComplete, onCancel }) => {
 
   const isStepValid = () => {
     if (step === 1) return config.title.trim().length > 0 && config.description.trim().length > 0;
-    if (step === 2) return !!config.assignmentFile; // Assignment PDF is required
+    if (step === 2) return !!config.assignmentFile || config.assignmentText.trim().length > 0; // Either PDF or text required
     if (step === 3) return true; // Rubric is optional
     if (step === 4) return true; // Solution is optional
     if (step === 5) return config.selectedModels.length > 0;
@@ -210,18 +211,30 @@ const SetupForm = ({ onComplete, onCancel }) => {
             </div>
           )}
 
-          {/* Step 2: Assignment PDF (required) */}
+          {/* Step 2: Assignment Content (PDF or Text) */}
           {step === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Assignment Questions PDF <span className="text-red-500">*</span></label>
-                <p className="text-sm text-zinc-500">Upload the PDF containing the assignment questions that students need to answer.</p>
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Assignment Questions <span className="text-red-500">*</span></label>
+                <p className="text-sm text-zinc-500">Provide the assignment questions either as text or by uploading a PDF.</p>
+              </div>
+              <textarea
+                value={config.assignmentText}
+                onChange={(e) => handleChange('assignmentText', e.target.value)}
+                className="w-full h-48 bg-zinc-50 border border-zinc-200 rounded-lg p-6 text-sm font-mono text-zinc-800 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all resize-none placeholder:text-zinc-400"
+                placeholder={`Question 1 (20 points): Analyze the symbolism of the green light in The Great Gatsby.\n\nQuestion 2 (30 points): Compare and contrast the characters of Tom and Gatsby.\n\nQuestion 3 (50 points): Write an essay discussing the theme of the American Dream.`}
+                autoFocus
+              />
+              <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-zinc-100"></div>
+                <span className="flex-shrink-0 mx-4 text-xs text-zinc-400 font-mono uppercase">OR</span>
+                <div className="flex-grow border-t border-zinc-100"></div>
               </div>
               <PDFUploader
                 field="assignmentFile"
                 currentFile={config.assignmentFile}
                 label="Assignment PDF"
-                required={true}
+                required={false}
               />
             </div>
           )}
@@ -398,15 +411,17 @@ const SetupForm = ({ onComplete, onCancel }) => {
 
                     <div className="p-4 bg-white border border-zinc-200 rounded-lg">
                       <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <FileText className="w-3 h-3" /> Assignment PDF
+                        <FileText className="w-3 h-3" /> Assignment Questions
                       </h4>
                       {config.assignmentFile ? (
                         <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
                           <Paperclip className="w-4 h-4 text-zinc-400" />
                           <span className="truncate">{config.assignmentFile.name}</span>
                         </div>
+                      ) : config.assignmentText ? (
+                        <div className="text-sm text-zinc-600 font-mono line-clamp-4">{config.assignmentText}</div>
                       ) : (
-                        <span className="text-zinc-400 italic text-sm">Not uploaded</span>
+                        <span className="text-zinc-400 italic text-sm">Not provided</span>
                       )}
                     </div>
 

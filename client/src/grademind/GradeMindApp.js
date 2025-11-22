@@ -144,10 +144,13 @@ function GradeMindApp() {
         return new Blob([byteArray], { type: mimeType });
       };
 
-      // Handle assignment PDF file (required)
+      // Handle assignment PDF file or text
       if (config.assignmentFile) {
         const blob = base64ToBlob(config.assignmentFile.data, config.assignmentFile.mimeType);
         formData.append('assignment', blob, config.assignmentFile.name);
+      } else if (config.assignmentText) {
+        // Send assignment text as a text field
+        formData.append('assignmentText', config.assignmentText);
       }
 
       // Handle rubric file

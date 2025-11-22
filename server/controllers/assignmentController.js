@@ -28,16 +28,17 @@ exports.createAssignment = async (req, res) => {
       });
     }
     
-    const { title, description, dueDate, course, totalPoints, questionStructure, sections } = req.body;
+    const { title, description, dueDate, course, totalPoints, questionStructure, sections, assignmentText } = req.body;
 
     // Get file paths
     const assignmentFilePath = req.files?.assignment?.[0]?.path;
     const rubricFilePath = req.files?.rubric?.[0]?.path;
     const solutionFilePath = req.files?.solution?.[0]?.path;
 
-    if (!assignmentFilePath) {
-      console.error('Validation Error: Assignment file is required');
-      return res.status(400).json({ error: 'Assignment file is required' });
+    // Either assignment file or assignment text is required
+    if (!assignmentFilePath && !assignmentText) {
+      console.error('Validation Error: Assignment file or text is required');
+      return res.status(400).json({ error: 'Assignment file or text is required' });
     }
 
     // Parse question structure if provided
@@ -86,6 +87,7 @@ exports.createAssignment = async (req, res) => {
       questionStructure: parsedQuestionStructure,
       sections: parsedSections,
       assignmentFile: assignmentFilePath,
+      assignmentText: assignmentText || '',
       rubricFile: rubricFilePath,
       solutionFile: solutionFilePath,
       processingStatus: 'pending',
@@ -103,18 +105,19 @@ exports.createAssignment = async (req, res) => {
        return res.status(500).json({ error: 'Failed to save assignment data.' });
     }
 
-    // Process assignment PDF directly with Gemini and queue jobs
+    // Process assignment (PDF or text) with Gemini and queue jobs
     try {
-      // Queue assignment for processing with PDF file path
+      // Queue assignment for processing
       console.log('📋 Queueing assignment for processing...');
       const job = await assignmentProcessingQueue.createJob({
         assignmentId: assignment._id,
-        pdfFilePath: assignmentFilePath,
+        pdfFilePath: assignmentFilePath || null,
+        assignmentText: assignmentText || null,
         questionStructure: parsedQuestionStructure,
         totalPoints: assignment.totalPoints
       }).save();
 
-      console.log('✅ Assignment queued for PDF processing:', assignment._id);
+      console.log(`✅ Assignment queued for ${assignmentFilePath ? 'PDF' : 'text'} processing:`, assignment._id);
       console.log(`   Job ID: ${job?.id || 'unknown'}`);
 
       // Process rubric if available
