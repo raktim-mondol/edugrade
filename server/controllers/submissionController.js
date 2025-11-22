@@ -1429,13 +1429,15 @@ exports.exportToExcel = async (req, res) => {
 };
 
 /**
- * Export submissions to CSV with detailed marking and feedback
+ * Export submissions to CSV with detailed question scores
  *
  * CSV Structure:
- * - Student ID, Student Name
- * - For each question/subsection: Score, Max Score, Feedback (why/where marks deducted)
- * - Total Score, Total Possible
- * - Overall strengths, areas for improvement
+ * - Row 1: Assignment Title
+ * - Row 2: Section/Description
+ * - Row 3: Empty
+ * - Row 4: Headers with question numbers (1.1, 1.2, 2.1, etc.)
+ * - Row 5: Max scores for each question
+ * - Row 6+: Student data with scores for each question
  */
 exports.exportToCsv = async (req, res) => {
   try {
@@ -1521,14 +1523,10 @@ exports.exportToCsv = async (req, res) => {
       return numA - numB;
     });
 
-    // Build CSV headers
-    const headers = ['Student ID', 'Student Name'];
-    const subHeaders = ['', '']; // For the second row showing max scores
-
-    // Add columns for each question/subsection
+    // Build question column info - collect all question/subsection labels
+    const questionColumns = [];
     sortedQuestions.forEach(q => {
       const subsections = Array.from(q.subsections.values()).sort((a, b) => {
-        // Sort subsections: numeric first, then alphabetic
         const aNum = parseInt(a.subsectionNumber);
         const bNum = parseInt(b.subsectionNumber);
         if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
@@ -1539,37 +1537,65 @@ exports.exportToCsv = async (req, res) => {
         subsections.forEach(subsec => {
           let label;
           if (/^\d+$/.test(subsec.subsectionNumber)) {
-            label = `Q${q.questionNumber}.${subsec.subsectionNumber}`;
+            label = `${q.questionNumber}.${subsec.subsectionNumber}`;
           } else if (subsec.subsectionNumber) {
-            label = `Q${q.questionNumber}(${subsec.subsectionNumber})`;
+            label = `${q.questionNumber}${subsec.subsectionNumber}`;
           } else {
-            label = `Q${q.questionNumber}`;
+            label = `${q.questionNumber}`;
           }
-
-          headers.push(`${label} Score`);
-          headers.push(`${label} Feedback`);
-          subHeaders.push(`Max: ${subsec.maxScore}`);
-          subHeaders.push('');
+          questionColumns.push({
+            label: label,
+            maxScore: subsec.maxScore,
+            questionNumber: q.questionNumber,
+            subsectionNumber: subsec.subsectionNumber
+          });
         });
       } else {
-        headers.push(`Q${q.questionNumber} Score`);
-        headers.push(`Q${q.questionNumber} Feedback`);
-        subHeaders.push(`Max: ${q.maxScore}`);
-        subHeaders.push('');
+        questionColumns.push({
+          label: `${q.questionNumber}`,
+          maxScore: q.maxScore,
+          questionNumber: q.questionNumber,
+          subsectionNumber: ''
+        });
       }
     });
 
-    // Add total and overall feedback columns
-    headers.push('Total Score', 'Total Possible', 'Percentage', 'Strengths', 'Areas for Improvement');
-    subHeaders.push('', '', '', '', '');
-
     // Build CSV rows
-    const rows = [headers, subHeaders];
+    const rows = [];
 
+    // Row 1: Assignment Title
+    rows.push([`Assignment: ${assignment.title || 'Untitled Assignment'}`]);
+
+    // Row 2: Section/Description
+    rows.push([`Section: ${assignment.section || assignment.description || 'N/A'}`]);
+
+    // Row 3: Export date
+    rows.push([`Generated: ${new Date().toLocaleString()}`]);
+
+    // Row 4: Empty row for spacing
+    rows.push([]);
+
+    // Row 5: Headers
+    const headers = ['Student Name', 'Student ID'];
+    questionColumns.forEach(col => {
+      headers.push(col.label);
+    });
+    headers.push('Total Score', 'Total Possible', 'Percentage', 'Strengths', 'Areas for Improvement');
+    rows.push(headers);
+
+    // Row 6: Max scores row
+    const maxScoreRow = ['Max Score', ''];
+    questionColumns.forEach(col => {
+      maxScoreRow.push(col.maxScore);
+    });
+    maxScoreRow.push(assignment.totalPoints || '', '', '', '', '');
+    rows.push(maxScoreRow);
+
+    // Data rows for each student
     submissions.forEach(sub => {
       const row = [
-        sub.studentId || 'N/A',
-        sub.studentName || 'N/A'
+        sub.studentName || 'N/A',
+        sub.studentId || 'N/A'
       ];
 
       // Get question scores
@@ -1590,59 +1616,35 @@ exports.exportToCsv = async (req, res) => {
         });
       }
 
-      // Fill in scores for each question/subsection
-      sortedQuestions.forEach(q => {
-        const qScore = scoresMap.get(q.questionNumber);
-        const subsections = Array.from(q.subsections.values()).sort((a, b) => {
-          const aNum = parseInt(a.subsectionNumber);
-          const bNum = parseInt(b.subsectionNumber);
-          if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-          return String(a.subsectionNumber).localeCompare(String(b.subsectionNumber));
-        });
+      // Fill in scores for each question column
+      questionColumns.forEach(col => {
+        const qScore = scoresMap.get(col.questionNumber);
+        let earnedScore = '';
 
-        if (subsections.length > 0) {
-          subsections.forEach(subsec => {
-            // Find matching subsection in student's scores
-            let earnedScore = 0;
-            let feedback = '';
-
-            if (qScore && qScore.subsections) {
-              const matchingSubsec = qScore.subsections.find(s =>
-                s.subsectionNumber === subsec.subsectionNumber
-              );
-              if (matchingSubsec) {
-                earnedScore = matchingSubsec.earnedScore || 0;
-                feedback = matchingSubsec.feedback || '';
-
-                // Add context about marks lost if applicable
-                const marksLost = (matchingSubsec.maxScore || 0) - earnedScore;
-                if (marksLost > 0 && feedback) {
-                  feedback = `[-${marksLost}] ${feedback}`;
-                }
-              }
+        if (qScore) {
+          if (col.subsectionNumber && qScore.subsections) {
+            // Find matching subsection
+            const matchingSubsec = qScore.subsections.find(s =>
+              s.subsectionNumber === col.subsectionNumber
+            );
+            if (matchingSubsec) {
+              earnedScore = matchingSubsec.earnedScore || 0;
             }
-
-            row.push(earnedScore);
-            row.push(feedback);
-          });
-        } else {
-          // Question without subsections
-          let earnedScore = 0;
-          let feedback = '';
-
-          if (qScore) {
+          } else if (!col.subsectionNumber) {
+            // Question without subsections
             earnedScore = qScore.earnedScore || 0;
-            feedback = qScore.feedback || '';
-
-            const marksLost = (qScore.maxScore || 0) - earnedScore;
-            if (marksLost > 0 && feedback) {
-              feedback = `[-${marksLost}] ${feedback}`;
+          } else if (qScore.subsections && qScore.subsections.length > 0) {
+            // Try to find subsection by number
+            const matchingSubsec = qScore.subsections.find(s =>
+              s.subsectionNumber === col.subsectionNumber
+            );
+            if (matchingSubsec) {
+              earnedScore = matchingSubsec.earnedScore || 0;
             }
           }
-
-          row.push(earnedScore);
-          row.push(feedback);
         }
+
+        row.push(earnedScore);
       });
 
       // Add totals and overall feedback
@@ -1679,7 +1681,7 @@ exports.exportToCsv = async (req, res) => {
     ).join('\n');
 
     // Send CSV response
-    const filename = `${assignment.title.replace(/[^a-z0-9]/gi, '_')}_detailed_marks.csv`;
+    const filename = `${assignment.title.replace(/[^a-z0-9]/gi, '_')}_question_scores.csv`;
 
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
