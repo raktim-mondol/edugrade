@@ -450,7 +450,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
 
                   {!editingSectionId && activeSectionId === section.id && (
                     <span className="ml-1 text-xs bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-full group-hover:hidden flex-shrink-0">
-                      {section.students.length}
+                      {(section.students || []).length}
                     </span>
                   )}
                 </button>
@@ -467,15 +467,15 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                 className="bg-zinc-900 h-1.5 rounded-full transition-all duration-500"
                 style={{
                   width: `${
-                    (assignment.sections.flatMap(s => s.students).filter(s => s.status === 'completed').length /
-                      Math.max(1, assignment.sections.flatMap(s => s.students).length)) * 100
+                    (assignment.sections.flatMap(s => s.students || []).filter(s => s.status === 'completed').length /
+                      Math.max(1, assignment.sections.flatMap(s => s.students || []).length)) * 100
                   }%`
                 }}
               />
             </div>
             <div className="text-xs font-medium text-zinc-900 flex justify-between">
-              <span>{assignment.sections.flatMap(s => s.students).filter(s => s.status === 'completed').length} Graded</span>
-              <span>{assignment.sections.flatMap(s => s.students).length} Total</span>
+              <span>{assignment.sections.flatMap(s => s.students || []).filter(s => s.status === 'completed').length} Graded</span>
+              <span>{assignment.sections.flatMap(s => s.students || []).length} Total</span>
             </div>
           </div>
         </div>
