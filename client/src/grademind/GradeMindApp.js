@@ -35,29 +35,95 @@ function GradeMindApp() {
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
   const [activeProjectId, setActiveProjectId] = useState(null);
 
-  // Load assignments and projects from localStorage on mount (keyed by user ID for data isolation)
+  // Load assignments and projects from backend API (with localStorage fallback)
   useEffect(() => {
     if (isSignedIn && user) {
-      const assignmentKey = `grademind-assignments-${user.id}`;
-      const projectKey = `grademind-projects-${user.id}`;
-
-      const savedAssignments = localStorage.getItem(assignmentKey);
-      if (savedAssignments) {
+      const fetchFromBackend = async () => {
         try {
-          setAssignments(JSON.parse(savedAssignments));
-        } catch (e) {
-          console.error('Failed to load saved assignments:', e);
-        }
-      }
+          // Get auth token from Clerk
+          const token = await window.Clerk?.session?.getToken();
 
-      const savedProjects = localStorage.getItem(projectKey);
-      if (savedProjects) {
-        try {
-          setProjects(JSON.parse(savedProjects));
-        } catch (e) {
-          console.error('Failed to load saved projects:', e);
+          // Fetch assignments from backend
+          const assignmentsResponse = await api.get('/assignments', {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          });
+
+          if (assignmentsResponse.data?.assignments) {
+            // Transform backend assignments to local format
+            const backendAssignments = assignmentsResponse.data.assignments.map(a => ({
+              id: a._id,
+              config: {
+                title: a.title,
+                description: a.description,
+                totalScore: a.totalPoints,
+                assignmentFile: a.assignmentFile ? { name: a.assignmentFile.split('/').pop() } : undefined,
+                rubricFile: a.rubricFile ? { name: a.rubricFile.split('/').pop() } : undefined,
+                solutionFile: a.solutionFile ? { name: a.solutionFile.split('/').pop() } : undefined,
+              },
+              sections: a.sections || [],
+              createdAt: new Date(a.createdAt).getTime(),
+              backendId: a._id,
+              processingStatus: a.processingStatus
+            }));
+
+            setAssignments(backendAssignments);
+            console.log('✅ Loaded', backendAssignments.length, 'assignments from backend');
+          }
+
+          // Fetch projects from backend
+          const projectsResponse = await api.get('/projects', {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          });
+
+          if (projectsResponse.data?.projects) {
+            const backendProjects = projectsResponse.data.projects.map(p => ({
+              id: p._id,
+              config: {
+                title: p.title,
+                description: p.description,
+                totalPoints: p.totalPoints,
+                projectType: p.projectType,
+                programmingLanguage: p.programmingLanguage,
+                rubricFile: p.rubricFile ? { name: p.rubricFile.split('/').pop() } : undefined,
+              },
+              submissions: [],
+              createdAt: new Date(p.createdAt).getTime(),
+              backendId: p._id,
+              processingStatus: p.processingStatus
+            }));
+
+            setProjects(backendProjects);
+            console.log('✅ Loaded', backendProjects.length, 'projects from backend');
+          }
+
+        } catch (error) {
+          console.error('❌ Error fetching from backend, falling back to localStorage:', error);
+
+          // Fallback to localStorage
+          const assignmentKey = `grademind-assignments-${user.id}`;
+          const projectKey = `grademind-projects-${user.id}`;
+
+          const savedAssignments = localStorage.getItem(assignmentKey);
+          if (savedAssignments) {
+            try {
+              setAssignments(JSON.parse(savedAssignments));
+            } catch (e) {
+              console.error('Failed to load saved assignments:', e);
+            }
+          }
+
+          const savedProjects = localStorage.getItem(projectKey);
+          if (savedProjects) {
+            try {
+              setProjects(JSON.parse(savedProjects));
+            } catch (e) {
+              console.error('Failed to load saved projects:', e);
+            }
+          }
         }
-      }
+      };
+
+      fetchFromBackend();
     }
   }, [isSignedIn, user]);
 
