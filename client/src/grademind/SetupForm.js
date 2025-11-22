@@ -249,7 +249,7 @@ const SetupForm = ({ onComplete, onCancel }) => {
                 <span className="text-xs bg-zinc-100 text-zinc-500 px-2 py-1 rounded font-mono">Optional</span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Total Points</label>
                 <input
                   type="number"
