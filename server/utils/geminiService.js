@@ -227,7 +227,7 @@ async function getGeminiResponse(prompt, jsonResponse = false) {
  * 
  * Note: PDF files are sent directly to Gemini API. .ipynb files are converted to PDF first.
  */
-async function evaluateSubmission(assignmentData, rubricData, solutionData, submissionFilePath, studentId, orchestratedData = null) {
+async function evaluateSubmission(assignmentData, rubricData, solutionData, submissionFilePath, studentId, orchestratedData = null, assignmentTitle = '', assignmentDescription = '') {
   try {
     // Check if proper data exists (rubricData is optional)
     if (!assignmentData || !submissionFilePath) {
@@ -326,12 +326,27 @@ You MUST provide DETAILED SUBSECTION-LEVEL grading for EVERY SINGLE QUESTION in 
 - NEVER skip any questions
 This is NOT optional - it is MANDATORY for every submission.
 
-${originalFileType === '.ipynb' ? 
+${originalFileType === '.ipynb' ?
   'This submission was originally a Jupyter notebook containing code cells, markdown explanations, and execution outputs, which has been converted to PDF format. Analyze all content including code, explanations, outputs, plots, and any visual elements.' :
   'This is a PDF document submission. Analyze the entire content of the document including text, images, tables, charts, graphs, code snippets, mathematical expressions, diagrams, and any visual elements.'
 }
 
-ASSIGNMENT INFORMATION:
+${assignmentTitle || assignmentDescription ? `
+🎯 **INSTRUCTOR-PROVIDED CONTEXT (PRIORITY FOCUS):**
+${assignmentTitle ? `**Assignment Title:** ${assignmentTitle}` : ''}
+${assignmentDescription ? `
+**Instructions/Context from Instructor:**
+${assignmentDescription}
+
+⚠️ **IMPORTANT**: The above instructions/context were specifically provided by the instructor. You MUST:
+- Pay special attention to any specific requirements, expectations, or focus areas mentioned
+- Ensure grading aligns with the instructor's stated objectives and context
+- Reference these instructions when evaluating whether the student has met the assignment goals
+- If the instructions mention specific criteria, methodologies, or approaches, prioritize these in your evaluation
+` : ''}
+` : ''}
+
+ASSIGNMENT INFORMATION (from processed document):
 Title: ${assignmentData.title || "No title provided"}
 Description: ${assignmentData.description || "No description provided"}
 ${questionStructureText}

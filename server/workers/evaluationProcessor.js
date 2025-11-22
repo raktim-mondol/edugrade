@@ -100,16 +100,18 @@ evaluationQueue.process(async (job) => {
   // *** END ADDED LOGGING ***
   console.log(`Processing evaluation job ${job.id}`);
   
-  const { 
-    submissionId, 
+  const {
+    submissionId,
     assignmentId,
-    assignmentData, 
-    rubricData, 
-    solutionData, 
+    assignmentData,
+    assignmentTitle,
+    assignmentDescription,
+    rubricData,
+    solutionData,
     submissionFilePath,
     submissionOriginalPath,
     submissionFileType,
-    studentId 
+    studentId
   } = job.data;
   
   // More specific check for missing data
@@ -189,7 +191,9 @@ evaluationQueue.process(async (job) => {
         solutionData,
         filePathForEvaluation,
         studentId,
-        orchestratedData  // Pass orchestrated data to evaluation
+        orchestratedData,  // Pass orchestrated data to evaluation
+        assignmentTitle,
+        assignmentDescription
       );
     }
     

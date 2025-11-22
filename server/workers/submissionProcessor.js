@@ -47,6 +47,8 @@ submissionProcessingQueue.process(async (job) => {
         submissionId,
         assignmentId: submission.assignmentId,
         assignmentData: assignment.processedData,
+        assignmentTitle: assignment.title || '',
+        assignmentDescription: assignment.description || '',
         rubricData: assignment.processedRubric,
         solutionData: assignment.processedSolution || {}, // Ensure {} if solution is missing/undefined
         submissionFilePath: filePath,
@@ -75,6 +77,8 @@ submissionProcessingQueue.process(async (job) => {
         submissionId,
         assignmentId: submission.assignmentId,
         assignmentData: assignment.processedData,
+        assignmentTitle: assignment.title || '',
+        assignmentDescription: assignment.description || '',
         rubricData: assignment.processedRubric || null, // Can be null - will derive from assignment if needed
         solutionData: assignment.processedSolution || null, // Can be null - solution is optional
         submissionFilePath: filePath,
