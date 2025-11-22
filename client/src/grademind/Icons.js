@@ -30,7 +30,10 @@ import {
   Sparkles,
   Search,
   BookOpen,
-  Menu
+  Menu,
+  Code,
+  FileCode,
+  FolderCode
 } from 'lucide-react';
 
 export {
@@ -65,5 +68,8 @@ export {
   Sparkles,
   Search,
   BookOpen,
-  Menu
+  Menu,
+  Code,
+  FileCode,
+  FolderCode
 };

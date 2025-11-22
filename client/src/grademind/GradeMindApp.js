@@ -3,6 +3,7 @@ import { useAuth, useUser, SignIn, SignUp } from '@clerk/clerk-react';
 import api from '../utils/api';
 import Landing from './Landing';
 import SetupForm from './SetupForm';
+import ProjectSetupForm from './ProjectSetupForm';
 import Dashboard from './Dashboard';
 import Workspaces from './Workspaces';
 import Pricing from './Pricing';
@@ -15,7 +16,9 @@ const AppView = {
   PRICING: 'PRICING',
   WORKSPACES: 'WORKSPACES',
   SETUP: 'SETUP',
+  PROJECT_SETUP: 'PROJECT_SETUP',
   DASHBOARD: 'DASHBOARD',
+  PROJECT_DASHBOARD: 'PROJECT_DASHBOARD',
   DOCS: 'DOCS',
   PRIVACY: 'PRIVACY',
   TERMS: 'TERMS',
@@ -28,18 +31,31 @@ function GradeMindApp() {
   const { user } = useUser();
   const [view, setView] = useState(AppView.LANDING);
   const [assignments, setAssignments] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
+  const [activeProjectId, setActiveProjectId] = useState(null);
 
-  // Load assignments from localStorage on mount (keyed by user ID for data isolation)
+  // Load assignments and projects from localStorage on mount (keyed by user ID for data isolation)
   useEffect(() => {
     if (isSignedIn && user) {
-      const storageKey = `grademind-assignments-${user.id}`;
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
+      const assignmentKey = `grademind-assignments-${user.id}`;
+      const projectKey = `grademind-projects-${user.id}`;
+
+      const savedAssignments = localStorage.getItem(assignmentKey);
+      if (savedAssignments) {
         try {
-          setAssignments(JSON.parse(saved));
+          setAssignments(JSON.parse(savedAssignments));
         } catch (e) {
           console.error('Failed to load saved assignments:', e);
+        }
+      }
+
+      const savedProjects = localStorage.getItem(projectKey);
+      if (savedProjects) {
+        try {
+          setProjects(JSON.parse(savedProjects));
+        } catch (e) {
+          console.error('Failed to load saved projects:', e);
         }
       }
     }
@@ -67,6 +83,25 @@ function GradeMindApp() {
       }
     }
   }, [assignments, isSignedIn, user]);
+
+  // Save projects to localStorage whenever they change (keyed by user ID)
+  useEffect(() => {
+    if (isSignedIn && user) {
+      const storageKey = `grademind-projects-${user.id}`;
+      const projectsToSave = projects.map(p => ({
+        ...p,
+        config: p.config ? {
+          ...p.config,
+          rubricFile: p.config.rubricFile ? { name: p.config.rubricFile.name } : undefined,
+        } : p.config
+      }));
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(projectsToSave));
+      } catch (error) {
+        console.error('Failed to save projects to localStorage:', error);
+      }
+    }
+  }, [projects, isSignedIn, user]);
 
   // Redirect to workspaces when user signs in
   useEffect(() => {
@@ -228,14 +263,100 @@ function GradeMindApp() {
     }
   };
 
+  // Project handlers
+  const handleCreateProject = async (config) => {
+    try {
+      // Create FormData for multipart upload
+      const formData = new FormData();
+
+      // Add basic fields
+      formData.append('title', config.title);
+      formData.append('description', config.description || '');
+      formData.append('totalPoints', config.totalPoints || 100);
+      formData.append('projectType', config.projectType);
+      formData.append('programmingLanguage', config.programmingLanguage || '');
+
+      // Helper to convert base64 to Blob
+      const base64ToBlob = (base64Data, mimeType) => {
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        return new Blob([byteArray], { type: mimeType });
+      };
+
+      // Handle rubric file
+      if (config.rubricFile) {
+        const blob = base64ToBlob(config.rubricFile.data, config.rubricFile.mimeType);
+        formData.append('rubric', blob, config.rubricFile.name);
+      } else if (config.rubric) {
+        const blob = new Blob([config.rubric], { type: 'text/plain' });
+        formData.append('rubric', blob, 'rubric.txt');
+      }
+
+      console.log('📤 Sending project to backend API...');
+
+      // Get auth token from Clerk
+      const token = await window.Clerk?.session?.getToken();
+
+      // POST to backend API
+      const response = await api.post('/projects', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+
+      console.log('✅ Project created:', response.data);
+
+      // Create local project object with backend ID
+      const newProject = {
+        id: response.data.project._id,
+        config,
+        submissions: [],
+        createdAt: Date.now(),
+        backendId: response.data.project._id,
+        processingStatus: response.data.project.processingStatus
+      };
+
+      setProjects(prev => [...prev, newProject]);
+      setActiveProjectId(newProject.id);
+      setView(AppView.PROJECT_DASHBOARD);
+
+    } catch (error) {
+      console.error('❌ Error creating project:', error);
+      alert(`Failed to create project: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  const handleUpdateProject = (updatedProject) => {
+    setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+  };
+
+  const handleSelectProject = (id) => {
+    setActiveProjectId(id);
+    setView(AppView.PROJECT_DASHBOARD);
+  };
+
+  const handleDeleteProject = (id) => {
+    if (window.confirm('Are you sure you want to delete this project?')) {
+      setProjects(prev => prev.filter(p => p.id !== id));
+    }
+  };
+
   const handleLogout = async () => {
     await signOut();
     setView(AppView.LANDING);
     setActiveAssignmentId(null);
+    setActiveProjectId(null);
     setAssignments([]);
+    setProjects([]);
   };
 
   const activeAssignment = assignments.find(a => a.id === activeAssignmentId);
+  const activeProject = projects.find(p => p.id === activeProjectId);
 
   // Get user display name
   const getUserDisplayName = () => {
@@ -345,9 +466,13 @@ function GradeMindApp() {
       {view === AppView.WORKSPACES && isSignedIn && (
         <Workspaces
           assignments={assignments}
+          projects={projects}
           onCreateNew={() => setView(AppView.SETUP)}
+          onCreateProject={() => setView(AppView.PROJECT_SETUP)}
           onSelect={handleSelectAssignment}
+          onSelectProject={handleSelectProject}
           onDelete={handleDeleteAssignment}
+          onDeleteProject={handleDeleteProject}
           onLogout={handleLogout}
           userName={getUserDisplayName()}
           userImageUrl={user?.imageUrl}
@@ -361,11 +486,27 @@ function GradeMindApp() {
         />
       )}
 
+      {view === AppView.PROJECT_SETUP && isSignedIn && (
+        <ProjectSetupForm
+          onComplete={handleCreateProject}
+          onCancel={() => setView(AppView.WORKSPACES)}
+        />
+      )}
+
       {view === AppView.DASHBOARD && activeAssignment && isSignedIn && (
         <Dashboard
           assignment={activeAssignment}
           onUpdateAssignment={handleUpdateAssignment}
           onBack={() => setView(AppView.WORKSPACES)}
+        />
+      )}
+
+      {view === AppView.PROJECT_DASHBOARD && activeProject && isSignedIn && (
+        <Dashboard
+          assignment={activeProject}
+          onUpdateAssignment={handleUpdateProject}
+          onBack={() => setView(AppView.WORKSPACES)}
+          isProject={true}
         />
       )}
     </div>
