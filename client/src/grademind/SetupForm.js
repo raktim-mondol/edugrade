@@ -327,7 +327,7 @@ const SetupForm = ({ onComplete, onCancel }) => {
                         </div>
                         {config.selectedModels.includes(model.id) && <CheckCircle className="w-5 h-5 text-white" />}
                       </div>
-                      <h3 className="font-bold text-sm mb-1">{model.name}</h3>
+                      <h3 className={`font-bold text-sm mb-1 ${config.selectedModels.includes(model.id) ? 'text-white' : 'text-zinc-900'}`}>{model.name}</h3>
                       <p className={`text-xs ${config.selectedModels.includes(model.id) ? 'text-zinc-400' : 'text-zinc-500'}`}>
                         {model.desc}
                       </p>
