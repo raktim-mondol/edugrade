@@ -1,79 +1,31 @@
-const Redis = require('ioredis');
+const { Redis } = require('@upstash/redis');
 
 let redis = null;
 let isConnected = false;
 
-// Initialize Redis connection
+// Initialize Redis connection using Upstash REST API
 function initRedis() {
-  if (!process.env.REDIS_URL) {
-    console.log('⚠️ REDIS_URL not configured, caching disabled');
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    console.log('⚠️ UPSTASH_REDIS_REST_URL/TOKEN not configured, caching disabled');
     return null;
   }
 
   try {
-    const redisUrl = process.env.REDIS_URL;
-
-    // Parse the URL to check if it's TLS (rediss://)
-    const isTLS = redisUrl.startsWith('rediss://');
-
-    redis = new Redis(redisUrl, {
-      maxRetriesPerRequest: 3,
-      retryStrategy: (times) => {
-        // Stop retrying after 3 attempts or on auth errors
-        if (times > 3) {
-          console.error('❌ Redis max retries reached, disabling cache');
-          isConnected = false;
-          return null; // Stop retrying
-        }
-        return Math.min(times * 200, 2000);
-      },
-      reconnectOnError: (err) => {
-        // Don't reconnect on auth errors
-        if (err.message.includes('WRONGPASS') || err.message.includes('NOAUTH')) {
-          console.error('❌ Redis authentication failed - check REDIS_URL credentials');
-          return false;
-        }
-        return true;
-      },
-      enableReadyCheck: true,
-      connectTimeout: 10000,
-      // TLS options for Upstash
-      ...(isTLS && {
-        tls: {
-          rejectUnauthorized: false
-        }
-      })
+    redis = new Redis({
+      url,
+      token
     });
 
-    redis.on('connect', () => {
-      console.log('✅ Redis connected');
-    });
-
-    redis.on('ready', () => {
-      isConnected = true;
-      console.log('✅ Redis ready for commands');
-    });
-
-    redis.on('error', (err) => {
-      // Only log once for auth errors
-      if (err.message.includes('WRONGPASS') || err.message.includes('NOAUTH')) {
-        if (isConnected !== false) {
-          console.error('❌ Redis authentication failed - caching disabled');
-          isConnected = false;
-        }
-      } else {
-        console.error('❌ Redis error:', err.message);
-        isConnected = false;
-      }
-    });
-
-    redis.on('close', () => {
-      isConnected = false;
-    });
+    isConnected = true;
+    console.log('✅ Redis (Upstash REST) initialized');
 
     return redis;
   } catch (error) {
     console.error('❌ Failed to initialize Redis:', error.message);
+    isConnected = false;
     return null;
   }
 }
@@ -85,11 +37,15 @@ async function getCache(key) {
   try {
     const data = await redis.get(key);
     if (data) {
-      return JSON.parse(data);
+      // Upstash REST already parses JSON, but handle both cases
+      if (typeof data === 'string') {
+        return JSON.parse(data);
+      }
+      return data;
     }
     return null;
   } catch (error) {
-    // Silently fail - caching is optional
+    console.error('Cache get error:', error.message);
     return null;
   }
 }
@@ -102,6 +58,7 @@ async function setCache(key, data, ttlSeconds = 30) {
     await redis.setex(key, ttlSeconds, JSON.stringify(data));
     return true;
   } catch (error) {
+    console.error('Cache set error:', error.message);
     return false;
   }
 }
@@ -114,6 +71,7 @@ async function deleteCache(key) {
     await redis.del(key);
     return true;
   } catch (error) {
+    console.error('Cache delete error:', error.message);
     return false;
   }
 }
@@ -124,11 +82,12 @@ async function deleteCachePattern(pattern) {
 
   try {
     const keys = await redis.keys(pattern);
-    if (keys.length > 0) {
+    if (keys && keys.length > 0) {
       await redis.del(...keys);
     }
     return true;
   } catch (error) {
+    console.error('Cache pattern delete error:', error.message);
     return false;
   }
 }
