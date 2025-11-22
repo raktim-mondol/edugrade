@@ -64,6 +64,59 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
     return () => clearInterval(interval);
   }, [assignment.backendId, processingStatus?.assignmentProcessingStatus, processingStatus?.rubricProcessingStatus, processingStatus?.solutionProcessingStatus]);
 
+  // Fetch existing submissions from backend
+  useEffect(() => {
+    if (!assignment.backendId) return;
+
+    const fetchSubmissions = async () => {
+      try {
+        const token = await window.Clerk?.session?.getToken();
+        const response = await api.get(`/submissions/${assignment.backendId}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+
+        if (response.data?.submissions && response.data.submissions.length > 0) {
+          // Map backend submissions to student format
+          const students = response.data.submissions.map(sub => ({
+            id: sub._id,
+            name: sub.studentName,
+            content: sub.submissionFile,
+            fileType: sub.fileType || 'pdf',
+            status: sub.evaluationStatus === 'completed' ? 'completed' :
+                    sub.evaluationStatus === 'failed' ? 'error' :
+                    sub.evaluationStatus === 'processing' ? 'grading' : 'pending',
+            result: sub.evaluationResult,
+            score: sub.overallGrade,
+            totalPossible: sub.totalPossible,
+            backendId: sub._id
+          }));
+
+          // Add students to the first section (or default section)
+          const updatedSections = assignment.sections.map((section, index) => {
+            if (index === 0) {
+              // Merge with existing students, avoiding duplicates
+              const existingIds = new Set((section.students || []).map(s => s.backendId || s.id));
+              const newStudents = students.filter(s => !existingIds.has(s.id));
+              return {
+                ...section,
+                students: [...(section.students || []), ...newStudents]
+              };
+            }
+            return section;
+          });
+
+          if (JSON.stringify(updatedSections) !== JSON.stringify(assignment.sections)) {
+            onUpdateAssignment({ ...assignment, sections: updatedSections });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching submissions:', error);
+      }
+    };
+
+    fetchSubmissions();
+  }, [assignment.backendId]);
+
   // Check if processing is complete - only when ALL documents are processed
   const isProcessingComplete = processingStatus?.evaluationReadyStatus === 'ready';
 
