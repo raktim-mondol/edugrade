@@ -11,31 +11,64 @@ function initRedis() {
   }
 
   try {
-    redis = new Redis(process.env.REDIS_URL, {
+    const redisUrl = process.env.REDIS_URL;
+
+    // Parse the URL to check if it's TLS (rediss://)
+    const isTLS = redisUrl.startsWith('rediss://');
+
+    redis = new Redis(redisUrl, {
       maxRetriesPerRequest: 3,
-      retryDelayOnFailover: 100,
+      retryStrategy: (times) => {
+        // Stop retrying after 3 attempts or on auth errors
+        if (times > 3) {
+          console.error('❌ Redis max retries reached, disabling cache');
+          isConnected = false;
+          return null; // Stop retrying
+        }
+        return Math.min(times * 200, 2000);
+      },
+      reconnectOnError: (err) => {
+        // Don't reconnect on auth errors
+        if (err.message.includes('WRONGPASS') || err.message.includes('NOAUTH')) {
+          console.error('❌ Redis authentication failed - check REDIS_URL credentials');
+          return false;
+        }
+        return true;
+      },
       enableReadyCheck: true,
-      connectTimeout: 5000,
-      lazyConnect: true
+      connectTimeout: 10000,
+      // TLS options for Upstash
+      ...(isTLS && {
+        tls: {
+          rejectUnauthorized: false
+        }
+      })
     });
 
     redis.on('connect', () => {
-      isConnected = true;
       console.log('✅ Redis connected');
     });
 
+    redis.on('ready', () => {
+      isConnected = true;
+      console.log('✅ Redis ready for commands');
+    });
+
     redis.on('error', (err) => {
-      console.error('❌ Redis error:', err.message);
-      isConnected = false;
+      // Only log once for auth errors
+      if (err.message.includes('WRONGPASS') || err.message.includes('NOAUTH')) {
+        if (isConnected !== false) {
+          console.error('❌ Redis authentication failed - caching disabled');
+          isConnected = false;
+        }
+      } else {
+        console.error('❌ Redis error:', err.message);
+        isConnected = false;
+      }
     });
 
     redis.on('close', () => {
       isConnected = false;
-    });
-
-    // Connect
-    redis.connect().catch(err => {
-      console.error('❌ Redis connection failed:', err.message);
     });
 
     return redis;
@@ -56,7 +89,7 @@ async function getCache(key) {
     }
     return null;
   } catch (error) {
-    console.error('Cache get error:', error.message);
+    // Silently fail - caching is optional
     return null;
   }
 }
@@ -69,7 +102,6 @@ async function setCache(key, data, ttlSeconds = 30) {
     await redis.setex(key, ttlSeconds, JSON.stringify(data));
     return true;
   } catch (error) {
-    console.error('Cache set error:', error.message);
     return false;
   }
 }
@@ -82,7 +114,6 @@ async function deleteCache(key) {
     await redis.del(key);
     return true;
   } catch (error) {
-    console.error('Cache delete error:', error.message);
     return false;
   }
 }
@@ -98,7 +129,6 @@ async function deleteCachePattern(pattern) {
     }
     return true;
   } catch (error) {
-    console.error('Cache pattern delete error:', error.message);
     return false;
   }
 }
