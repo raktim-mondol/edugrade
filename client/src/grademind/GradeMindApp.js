@@ -323,9 +323,25 @@ function GradeMindApp() {
     setView(AppView.DASHBOARD);
   };
 
-  const handleDeleteAssignment = (id) => {
+  const handleDeleteAssignment = async (id) => {
     if (window.confirm('Are you sure you want to delete this assignment?')) {
-      setAssignments(prev => prev.filter(a => a.id !== id));
+      try {
+        // Get auth token from Clerk
+        const token = await window.Clerk?.session?.getToken();
+
+        // Call backend API to delete
+        await api.delete(`/assignments/${id}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+
+        console.log('✅ Assignment deleted from backend:', id);
+
+        // Remove from local state
+        setAssignments(prev => prev.filter(a => a.id !== id));
+      } catch (error) {
+        console.error('❌ Error deleting assignment:', error);
+        alert(`Failed to delete assignment: ${error.response?.data?.error || error.message}`);
+      }
     }
   };
 

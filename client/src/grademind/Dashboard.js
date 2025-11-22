@@ -326,7 +326,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
     return 'bg-red-50 text-red-600 border border-red-100';
   };
 
-  const completedStudents = activeSection?.students.filter(s => s.status === 'completed' && s.result) || [];
+  const completedStudents = activeSection?.students?.filter(s => s.status === 'completed' && s.result) || [];
   const scores = completedStudents.map(s => s.result.score);
 
   const getStats = () => {
@@ -507,7 +507,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
               </button>
             )}
 
-            {isProcessingComplete && activeSection?.students.length === 0 ? (
+            {isProcessingComplete && activeSection?.students?.length === 0 ? (
               <label className="cursor-pointer flex items-center gap-2 bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 transition-all shadow-sm hover:shadow hover:-translate-y-0.5">
                 <Upload className="w-4 h-4" />
                 Upload Students
@@ -520,7 +520,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                   onChange={handleFileUpload}
                 />
               </label>
-            ) : isProcessingComplete && activeSection?.students.length > 0 ? (
+            ) : isProcessingComplete && activeSection?.students?.length > 0 ? (
               <>
                 <label className="cursor-pointer flex items-center gap-2 bg-white border border-zinc-200 text-zinc-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-zinc-50 transition-all">
                   <Upload className="w-4 h-4" />
@@ -528,7 +528,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                   <input type="file" ref={fileInputRef} className="hidden" multiple accept=".txt,.pdf,.md" onChange={handleFileUpload} />
                 </label>
 
-                {!isProcessing && activeSection?.students.some(s => s.status === 'pending') && (
+                {!isProcessing && activeSection?.students?.some(s => s.status === 'pending') && (
                   <button
                     onClick={runEvaluation}
                     className="flex items-center gap-2 bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 transition-all shadow-sm hover:shadow hover:-translate-y-0.5"
@@ -537,7 +537,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                     Evaluate Section
                   </button>
                 )}
-                {activeSection?.students.length > 0 && activeSection?.students.every(s => s.status === 'completed') && (
+                {activeSection?.students?.length > 0 && activeSection?.students?.every(s => s.status === 'completed') && (
                   <button
                     onClick={exportCsv}
                     className="flex items-center gap-2 bg-zinc-100 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-200 transition-all"
@@ -743,7 +743,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
           )}
 
           {/* Show student upload section only when processing is complete and not viewing processed data */}
-          {isProcessingComplete && !showProcessedData && !activeSection?.students.length ? (
+          {isProcessingComplete && !showProcessedData && !activeSection?.students?.length ? (
             <div className="h-full flex flex-col items-center justify-center text-zinc-400 border-2 border-dashed border-zinc-100 rounded-2xl">
               <div className="w-16 h-16 bg-zinc-50 rounded-2xl flex items-center justify-center mb-4">
                 <CheckCircle className="w-8 h-8 text-green-500" />
@@ -763,7 +763,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                 </label>
               </div>
             </div>
-          ) : isProcessingComplete && !showProcessedData && activeSection?.students.length > 0 ? (
+          ) : isProcessingComplete && !showProcessedData && activeSection?.students?.length > 0 ? (
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 h-full overflow-auto lg:overflow-hidden">
               <div className="lg:flex-1 bg-white rounded-xl border border-zinc-200 overflow-hidden flex flex-col shadow-sm min-h-[300px] lg:min-h-0">
                 <div className="p-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/30">
