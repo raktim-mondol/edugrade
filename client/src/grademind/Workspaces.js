@@ -159,9 +159,7 @@ const Workspaces = ({
 
                       <div className="mt-auto pt-6 border-t border-zinc-100 flex justify-between items-center relative z-0">
                         <div className="text-xs font-mono text-zinc-500 flex items-center gap-2">
-                          <span>{assignment.sections?.length || 0} Sections</span>
-                          <span className="w-1 h-1 rounded-full bg-zinc-300"></span>
-                          <span>{assignment.sections?.reduce((acc, s) => acc + (s.students?.length || 0), 0) || 0} Students</span>
+                          <span>{assignment.submissionCount || assignment.sections?.reduce((acc, s) => acc + (s.students?.length || 0), 0) || 0} Students</span>
                           <span className="w-1 h-1 rounded-full bg-zinc-300"></span>
                           <span className="font-semibold text-zinc-700">{assignment.config.totalScore || 100} Pts</span>
                         </div>

@@ -64,6 +64,7 @@ function GradeMindApp() {
                 ...s,
                 students: s.students || []
               })),
+              submissionCount: a.submissionCount || 0,
               createdAt: new Date(a.createdAt).getTime(),
               backendId: a._id,
               processingStatus: a.processingStatus

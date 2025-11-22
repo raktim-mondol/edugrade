@@ -1,4 +1,5 @@
 const { Assignment } = require('../models/assignment');
+const Submission = require('../models/submission');
 const fs = require('fs').promises;
 const path = require('path');
 const { extractTextFromPDF } = require('../utils/pdfExtractor');
@@ -204,7 +205,19 @@ exports.getAssignments = async (req, res) => {
 
     // Filter assignments by userId
     const assignments = await Assignment.find({ userId }).sort({ createdAt: -1 });
-    res.status(200).json({ assignments });
+
+    // Get submission counts for each assignment
+    const assignmentsWithCounts = await Promise.all(
+      assignments.map(async (assignment) => {
+        const submissionCount = await Submission.countDocuments({ assignmentId: assignment._id });
+        return {
+          ...assignment.toObject(),
+          submissionCount
+        };
+      })
+    );
+
+    res.status(200).json({ assignments: assignmentsWithCounts });
   } catch (error) {
     console.error('Error retrieving assignments:', error);
     res.status(500).json({ error: 'An error occurred while retrieving assignments' });
