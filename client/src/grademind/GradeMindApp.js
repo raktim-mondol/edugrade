@@ -60,7 +60,10 @@ function GradeMindApp() {
                 rubricFile: a.rubricFile ? { name: a.rubricFile.split('/').pop() } : undefined,
                 solutionFile: a.solutionFile ? { name: a.solutionFile.split('/').pop() } : undefined,
               },
-              sections: a.sections || [],
+              sections: (a.sections || []).map(s => ({
+                ...s,
+                students: s.students || []
+              })),
               createdAt: new Date(a.createdAt).getTime(),
               backendId: a._id,
               processingStatus: a.processingStatus
