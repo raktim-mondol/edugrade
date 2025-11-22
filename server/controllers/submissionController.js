@@ -1535,13 +1535,26 @@ exports.exportToCsv = async (req, res) => {
 
       if (subsections.length > 0) {
         subsections.forEach(subsec => {
+          // Use the exact format from the evaluation - could be 1.1, 1a, 1i, 1(a), etc.
           let label;
-          if (/^\d+$/.test(subsec.subsectionNumber)) {
-            label = `${q.questionNumber}.${subsec.subsectionNumber}`;
-          } else if (subsec.subsectionNumber) {
-            label = `${q.questionNumber}${subsec.subsectionNumber}`;
-          } else {
+          const subsecNum = subsec.subsectionNumber;
+          if (!subsecNum) {
             label = `${q.questionNumber}`;
+          } else if (/^\d+$/.test(subsecNum)) {
+            // Numeric: 1.1, 1.2, etc.
+            label = `${q.questionNumber}.${subsecNum}`;
+          } else if (/^[ivxlcdm]+$/i.test(subsecNum)) {
+            // Roman numerals: 1.i, 1.ii, etc.
+            label = `${q.questionNumber}.${subsecNum}`;
+          } else if (/^[a-z]$/i.test(subsecNum)) {
+            // Single letter: 1a, 1b, etc.
+            label = `${q.questionNumber}${subsecNum}`;
+          } else if (/^\([a-z0-9]+\)$/i.test(subsecNum)) {
+            // Already has parentheses: 1(a), 1(i), etc.
+            label = `${q.questionNumber}${subsecNum}`;
+          } else {
+            // Default: append with dot
+            label = `${q.questionNumber}.${subsecNum}`;
           }
           questionColumns.push({
             label: label,
