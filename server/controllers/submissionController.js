@@ -1523,113 +1523,106 @@ exports.exportToCsv = async (req, res) => {
       return { name: name || 'Unknown', id: id || 'N/A' };
     };
 
-    // Build the structure of all questions/subsections from all submissions
-    const questionStructure = new Map();
+    // Build the structure directly from criteriaGrades to match rubric exactly
+    // This ensures the CSV columns match the exact rubric criteria structure
+    const criteriaStructure = [];
 
+    // First, collect all unique criteria across all submissions
     submissions.forEach(sub => {
-      let questionScores = sub.evaluationResult?.questionScores;
+      const criteriaGrades = sub.evaluationResult?.criteriaGrades;
 
-      // Transform old format if needed
-      if ((!questionScores || !Array.isArray(questionScores) || questionScores.length === 0) &&
-          sub.evaluationResult?.criteriaGrades &&
-          Array.isArray(sub.evaluationResult.criteriaGrades) &&
-          sub.evaluationResult.criteriaGrades.length > 0) {
-        questionScores = transformCriteriaGradesToQuestionScores(sub.evaluationResult.criteriaGrades);
-      }
+      if (criteriaGrades && Array.isArray(criteriaGrades) && criteriaGrades.length > 0) {
+        // Use criteriaGrades directly - this matches the rubric structure exactly
+        criteriaGrades.forEach((grade, index) => {
+          const qNum = grade.questionNumber || `${index + 1}`;
+          const criterionName = grade.criterionName || `Criterion ${index + 1}`;
 
-      if (questionScores && Array.isArray(questionScores)) {
-        questionScores.forEach(qScore => {
-          const qNum = qScore.questionNumber || 'Unknown';
+          // Check if we already have this criterion
+          const existingIndex = criteriaStructure.findIndex(c =>
+            c.questionNumber === qNum && c.criterionName === criterionName
+          );
 
-          if (!questionStructure.has(qNum)) {
-            questionStructure.set(qNum, {
+          if (existingIndex === -1) {
+            criteriaStructure.push({
               questionNumber: qNum,
-              maxScore: qScore.maxScore || 0,
-              subsections: new Map()
+              criterionName: criterionName,
+              maxScore: grade.maxScore || 0,
+              index: index
             });
-          }
-
-          const question = questionStructure.get(qNum);
-          if (qScore.maxScore > question.maxScore) {
-            question.maxScore = qScore.maxScore;
-          }
-
-          if (qScore.subsections && qScore.subsections.length > 0) {
-            qScore.subsections.forEach(subsec => {
-              const subsecKey = subsec.subsectionNumber || '';
-              if (!question.subsections.has(subsecKey)) {
-                question.subsections.set(subsecKey, {
-                  subsectionNumber: subsecKey,
-                  maxScore: subsec.maxScore || 0
-                });
-              } else {
-                const existing = question.subsections.get(subsecKey);
-                if (subsec.maxScore > existing.maxScore) {
-                  existing.maxScore = subsec.maxScore;
-                }
-              }
-            });
+          } else {
+            // Update maxScore if this one is higher
+            if (grade.maxScore > criteriaStructure[existingIndex].maxScore) {
+              criteriaStructure[existingIndex].maxScore = grade.maxScore;
+            }
           }
         });
       }
     });
 
-    // Sort questions and convert to array
-    const sortedQuestions = Array.from(questionStructure.values()).sort((a, b) => {
-      const numA = parseInt(a.questionNumber) || 0;
-      const numB = parseInt(b.questionNumber) || 0;
-      return numA - numB;
+    // Sort criteria by their original index (maintains rubric order)
+    criteriaStructure.sort((a, b) => a.index - b.index);
+
+    // Build question columns from criteria structure
+    const questionColumns = [];
+    criteriaStructure.forEach((criterion, idx) => {
+      // Create a short label for the column header
+      let label = criterion.questionNumber;
+
+      // If question number is not numeric or is generic, use a shorter version
+      if (!/^\d+[a-z]?$/i.test(label)) {
+        // For non-standard question numbers, just use the number
+        label = `${idx + 1}`;
+      }
+
+      questionColumns.push({
+        label: label,
+        maxScore: criterion.maxScore,
+        questionNumber: criterion.questionNumber,
+        criterionName: criterion.criterionName,
+        subsectionNumber: ''
+      });
     });
 
-    // Build question column info - collect all question/subsection labels
-    const questionColumns = [];
-    sortedQuestions.forEach(q => {
-      const subsections = Array.from(q.subsections.values()).sort((a, b) => {
-        const aNum = parseInt(a.subsectionNumber);
-        const bNum = parseInt(b.subsectionNumber);
-        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-        return String(a.subsectionNumber).localeCompare(String(b.subsectionNumber));
+    // If no criteria found from criteriaGrades, fall back to questionScores
+    if (questionColumns.length === 0) {
+      submissions.forEach(sub => {
+        let questionScores = sub.evaluationResult?.questionScores;
+
+        if ((!questionScores || !Array.isArray(questionScores) || questionScores.length === 0) &&
+            sub.evaluationResult?.criteriaGrades &&
+            Array.isArray(sub.evaluationResult.criteriaGrades) &&
+            sub.evaluationResult.criteriaGrades.length > 0) {
+          questionScores = transformCriteriaGradesToQuestionScores(sub.evaluationResult.criteriaGrades);
+        }
+
+        if (questionScores && Array.isArray(questionScores)) {
+          questionScores.forEach(qScore => {
+            const qNum = qScore.questionNumber || 'Unknown';
+            const exists = questionColumns.find(c => c.questionNumber === qNum);
+
+            if (!exists) {
+              questionColumns.push({
+                label: qNum,
+                maxScore: qScore.maxScore || 0,
+                questionNumber: qNum,
+                criterionName: qScore.questionText || qNum,
+                subsectionNumber: ''
+              });
+            }
+          });
+        }
       });
 
-      if (subsections.length > 0) {
-        subsections.forEach(subsec => {
-          // Use the exact format from the evaluation - could be 1.1, 1a, 1i, 1(a), etc.
-          let label;
-          const subsecNum = subsec.subsectionNumber;
-          if (!subsecNum) {
-            label = `${q.questionNumber}`;
-          } else if (/^\d+$/.test(subsecNum)) {
-            // Numeric: 1.1, 1.2, etc.
-            label = `${q.questionNumber}.${subsecNum}`;
-          } else if (/^[ivxlcdm]+$/i.test(subsecNum)) {
-            // Roman numerals: 1.i, 1.ii, etc.
-            label = `${q.questionNumber}.${subsecNum}`;
-          } else if (/^[a-z]$/i.test(subsecNum)) {
-            // Single letter: 1a, 1b, etc.
-            label = `${q.questionNumber}${subsecNum}`;
-          } else if (/^\([a-z0-9]+\)$/i.test(subsecNum)) {
-            // Already has parentheses: 1(a), 1(i), etc.
-            label = `${q.questionNumber}${subsecNum}`;
-          } else {
-            // Default: append with dot
-            label = `${q.questionNumber}.${subsecNum}`;
-          }
-          questionColumns.push({
-            label: label,
-            maxScore: subsec.maxScore,
-            questionNumber: q.questionNumber,
-            subsectionNumber: subsec.subsectionNumber
-          });
-        });
-      } else {
-        questionColumns.push({
-          label: `${q.questionNumber}`,
-          maxScore: q.maxScore,
-          questionNumber: q.questionNumber,
-          subsectionNumber: ''
-        });
-      }
-    });
+      // Sort by question number
+      questionColumns.sort((a, b) => {
+        const numA = parseInt(a.questionNumber) || 0;
+        const numB = parseInt(b.questionNumber) || 0;
+        return numA - numB;
+      });
+    }
+
+    // Log what columns we're using
+    console.log(`CSV export: Found ${questionColumns.length} criteria columns for export`);
 
     // Build CSV rows
     const rows = [];
@@ -1697,50 +1690,56 @@ exports.exportToCsv = async (req, res) => {
         studentInfo.name
       ];
 
-      // Get question scores
-      let questionScores = sub.evaluationResult?.questionScores;
-      if ((!questionScores || !Array.isArray(questionScores) || questionScores.length === 0) &&
-          sub.evaluationResult?.criteriaGrades &&
-          Array.isArray(sub.evaluationResult.criteriaGrades) &&
-          sub.evaluationResult.criteriaGrades.length > 0) {
-        questionScores = transformCriteriaGradesToQuestionScores(sub.evaluationResult.criteriaGrades);
-      }
+      // Get scores from criteriaGrades (primary) or questionScores (fallback)
+      const criteriaGrades = sub.evaluationResult?.criteriaGrades;
 
-      // Create a map for easy lookup
+      // Create a map for easy lookup by questionNumber + criterionName
       const scoresMap = new Map();
-      if (questionScores && Array.isArray(questionScores)) {
-        questionScores.forEach(qScore => {
-          const qNum = qScore.questionNumber || 'Unknown';
-          scoresMap.set(qNum, qScore);
+
+      if (criteriaGrades && Array.isArray(criteriaGrades) && criteriaGrades.length > 0) {
+        // Use criteriaGrades directly - matches rubric structure exactly
+        criteriaGrades.forEach((grade, idx) => {
+          const qNum = grade.questionNumber || `${idx + 1}`;
+          const criterionName = grade.criterionName || `Criterion ${idx + 1}`;
+          // Key matches how we built questionColumns
+          scoresMap.set(`${qNum}_${criterionName}`, grade.score || 0);
+          // Also set by just question number for backward compatibility
+          if (!scoresMap.has(qNum)) {
+            scoresMap.set(qNum, grade.score || 0);
+          }
         });
+      } else {
+        // Fallback to questionScores
+        let questionScores = sub.evaluationResult?.questionScores;
+        if ((!questionScores || !Array.isArray(questionScores) || questionScores.length === 0) &&
+            criteriaGrades &&
+            Array.isArray(criteriaGrades) &&
+            criteriaGrades.length > 0) {
+          questionScores = transformCriteriaGradesToQuestionScores(criteriaGrades);
+        }
+
+        if (questionScores && Array.isArray(questionScores)) {
+          questionScores.forEach(qScore => {
+            const qNum = qScore.questionNumber || 'Unknown';
+            scoresMap.set(qNum, qScore.earnedScore || 0);
+          });
+        }
       }
 
       // Fill in scores for each question column
       questionColumns.forEach(col => {
-        const qScore = scoresMap.get(col.questionNumber);
         let earnedScore = '';
 
-        if (qScore) {
-          if (col.subsectionNumber && qScore.subsections) {
-            const matchingSubsec = qScore.subsections.find(s =>
-              s.subsectionNumber === col.subsectionNumber
-            );
-            if (matchingSubsec) {
-              earnedScore = matchingSubsec.earnedScore || 0;
-            }
-          } else if (!col.subsectionNumber) {
-            earnedScore = qScore.earnedScore || 0;
-          } else if (qScore.subsections && qScore.subsections.length > 0) {
-            const matchingSubsec = qScore.subsections.find(s =>
-              s.subsectionNumber === col.subsectionNumber
-            );
-            if (matchingSubsec) {
-              earnedScore = matchingSubsec.earnedScore || 0;
-            }
-          }
+        // Try exact match first (questionNumber + criterionName)
+        const exactKey = `${col.questionNumber}_${col.criterionName}`;
+        if (scoresMap.has(exactKey)) {
+          earnedScore = scoresMap.get(exactKey);
+        } else if (scoresMap.has(col.questionNumber)) {
+          // Fallback to questionNumber only
+          earnedScore = scoresMap.get(col.questionNumber);
         }
 
-        row.push(earnedScore);
+        row.push(earnedScore === '' ? '-' : earnedScore);
       });
 
       // Calculate totals
