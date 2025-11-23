@@ -77,7 +77,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
 
         if (response.data?.submissions && response.data.submissions.length > 0) {
           // Map backend submissions to student format
-          const students = response.data.submissions.map(sub => ({
+          const backendStudents = response.data.submissions.map(sub => ({
             id: sub._id,
             name: sub.studentName,
             content: sub.submissionFile,
@@ -103,12 +103,34 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
           // Add students to the first section (or default section)
           const updatedSections = assignment.sections.map((section, index) => {
             if (index === 0) {
-              // Merge with existing students, avoiding duplicates
-              const existingIds = new Set((section.students || []).map(s => s.backendId || s.id));
-              const newStudents = students.filter(s => !existingIds.has(s.id));
+              const existingStudents = section.students || [];
+
+              // Create a map of backend students by name for quick lookup
+              const backendStudentsByName = new Map();
+              backendStudents.forEach(s => backendStudentsByName.set(s.name, s));
+
+              // Update existing students with backend data (by name match)
+              const updatedStudents = existingStudents.map(existing => {
+                const backendMatch = backendStudentsByName.get(existing.name);
+                if (backendMatch) {
+                  // Update existing student with backend evaluation results
+                  backendStudentsByName.delete(existing.name); // Remove so we don't add it again
+                  return {
+                    ...existing,
+                    backendId: backendMatch.backendId,
+                    status: backendMatch.status,
+                    result: backendMatch.result || existing.result
+                  };
+                }
+                return existing;
+              });
+
+              // Add any remaining backend students that weren't matched
+              const newStudents = Array.from(backendStudentsByName.values());
+
               return {
                 ...section,
-                students: [...(section.students || []), ...newStudents]
+                students: [...updatedStudents, ...newStudents]
               };
             }
             return section;
