@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const { connectDB, isConnected } = require('./config/db');
 const { initRedis } = require('./config/redis');
+const { ClerkExpressWithAuth } = require('@clerk/clerk-sdk-node');
 
 // Import queue configuration
 const {
@@ -42,6 +43,15 @@ app.use('/api', (req, res, next) => {
   }
   next();
 });
+
+// Clerk authentication middleware (optional auth - populates req.auth when token present)
+// Only enable if CLERK_SECRET_KEY is configured
+if (process.env.CLERK_SECRET_KEY) {
+  app.use('/api', ClerkExpressWithAuth());
+  console.log('✅ Clerk authentication middleware enabled');
+} else {
+  console.log('⚠️  Clerk authentication disabled - running in development mode');
+}
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
