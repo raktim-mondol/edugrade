@@ -76,6 +76,15 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
         });
 
         if (response.data?.submissions && response.data.submissions.length > 0) {
+          // Debug logging
+          console.log('📥 Fetched submissions:', response.data.submissions.length);
+          response.data.submissions.forEach((sub, i) => {
+            console.log(`  [${i}] ${sub.studentName}: status=${sub.evaluationStatus}, hasResult=${!!sub.evaluationResult}`);
+            if (sub.evaluationResult) {
+              console.log(`      score=${sub.evaluationResult.overallGrade}, feedback=${sub.evaluationResult.feedback?.substring(0, 50)}...`);
+            }
+          });
+
           // Ensure we have at least one section to add students to
           if (assignment.sections.length === 0) {
             console.log('⏳ Waiting for sections to be initialized before loading submissions');
@@ -143,6 +152,10 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
           });
 
           if (JSON.stringify(updatedSections) !== JSON.stringify(assignment.sections)) {
+            console.log('📝 Updating assignment with students:', updatedSections[0]?.students?.length || 0);
+            updatedSections[0]?.students?.forEach((s, i) => {
+              console.log(`  [${i}] ${s.name}: status=${s.status}, hasResult=${!!s.result}, score=${s.result?.score}`);
+            });
             onUpdateAssignment({ ...assignment, sections: updatedSections });
           }
         }
