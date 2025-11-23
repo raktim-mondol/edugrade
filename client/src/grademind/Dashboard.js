@@ -238,7 +238,10 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
     try {
       // Delete from backend if it has a backend ID
       if (student.id && student.id.length === 24) {
-        await api.delete(`/submissions/${student.id}`);
+        const token = await window.Clerk?.session?.getToken();
+        await api.delete(`/submissions/${student.id}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
       }
 
       // Remove from local state
