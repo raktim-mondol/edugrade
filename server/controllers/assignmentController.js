@@ -1,5 +1,5 @@
 const { Assignment } = require('../models/assignment');
-const Submission = require('../models/submission');
+const { Submission } = require('../models/submission');
 const fs = require('fs').promises;
 const path = require('path');
 const { extractTextFromPDF } = require('../utils/pdfExtractor');
