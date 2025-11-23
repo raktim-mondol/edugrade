@@ -76,6 +76,12 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
         });
 
         if (response.data?.submissions && response.data.submissions.length > 0) {
+          // Ensure we have at least one section to add students to
+          if (assignment.sections.length === 0) {
+            console.log('⏳ Waiting for sections to be initialized before loading submissions');
+            return;
+          }
+
           // Map backend submissions to student format
           const backendStudents = response.data.submissions.map(sub => ({
             id: sub._id,
@@ -146,7 +152,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
     };
 
     fetchSubmissions();
-  }, [assignment.backendId]);
+  }, [assignment.backendId, assignment.sections.length]); // Re-run when sections are created
 
   // Check if processing is complete - only when ALL documents are processed
   const isProcessingComplete = processingStatus?.evaluationReadyStatus === 'ready';
