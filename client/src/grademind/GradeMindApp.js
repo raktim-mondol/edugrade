@@ -62,6 +62,8 @@ function GradeMindApp() {
               },
               sections: (a.sections || []).map(s => ({
                 ...s,
+                id: s._id || s.id || crypto.randomUUID(), // Ensure id exists
+                name: s.name || s.title || 'Section', // Transform title to name
                 students: s.students || []
               })),
               submissionCount: a.submissionCount || 0,
