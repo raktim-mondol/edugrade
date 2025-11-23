@@ -75,15 +75,21 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
 
+        console.log('\n=== FRONTEND FETCH SUBMISSIONS DEBUG ===');
+        console.log(`API Response status: ${response.status}`);
+        console.log(`Response data keys:`, Object.keys(response.data || {}));
+        console.log(`Submissions in response:`, response.data?.submissions?.length || 0);
+
         if (response.data?.submissions && response.data.submissions.length > 0) {
           // Debug logging
           console.log('📥 Fetched submissions:', response.data.submissions.length);
           response.data.submissions.forEach((sub, i) => {
-            console.log(`  [${i}] ${sub.studentName}: status=${sub.evaluationStatus}, hasResult=${!!sub.evaluationResult}`);
+            console.log(`  [${i}] ID: ${sub._id} | ${sub.studentName}: status=${sub.evaluationStatus}, hasResult=${!!sub.evaluationResult}, submitDate=${sub.submitDate}`);
             if (sub.evaluationResult) {
               console.log(`      score=${sub.evaluationResult.overallGrade}, feedback=${sub.evaluationResult.feedback?.substring(0, 50)}...`);
             }
           });
+          console.log('=== END FRONTEND DEBUG ===\n');
 
           // Ensure we have at least one section to add students to
           if (assignment.sections.length === 0) {
@@ -158,6 +164,9 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
             });
             onUpdateAssignment({ ...assignment, sections: updatedSections });
           }
+        } else {
+          console.log('⚠️ No submissions returned from API or empty array');
+          console.log(`Response data:`, response.data);
         }
       } catch (error) {
         console.error('Error fetching submissions:', error);
