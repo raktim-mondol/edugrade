@@ -1650,21 +1650,13 @@ exports.exportToCsv = async (req, res) => {
     rows.push(['STUDENT GRADES']);
     rows.push([]);
 
-    // Headers row
+    // Headers row with max points integrated
     const headers = ['#', 'Student ID', 'Student Name'];
     questionColumns.forEach(col => {
-      headers.push(`Q${col.label}`);
+      headers.push(`Q${col.label}(${col.maxScore})`);
     });
-    headers.push('Total', 'Percentage', 'Grade');
+    headers.push(`Total(${totalPossiblePoints})`, 'Percentage', 'Grade');
     rows.push(headers);
-
-    // Max scores row
-    const maxScoreRow = ['', '', 'Max Points'];
-    questionColumns.forEach(col => {
-      maxScoreRow.push(col.maxScore);
-    });
-    maxScoreRow.push(totalPossiblePoints, '100%', '');
-    rows.push(maxScoreRow);
 
     // Helper to convert percentage to letter grade
     const getLetterGrade = (percentage) => {
