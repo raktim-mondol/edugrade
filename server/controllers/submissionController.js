@@ -1250,7 +1250,7 @@ exports.getSubmissions = async (req, res) => {
       return res.status(403).json({ error: 'Access denied. You do not own this assignment.' });
     }
 
-    const submissions = await Submission.find({ assignmentId }).sort({ createdAt: -1 });
+    const submissions = await Submission.find({ assignmentId }).sort({ submitDate: -1 });
 
     res.status(200).json({ submissions });
   } catch (error) {
