@@ -1474,221 +1474,324 @@ exports.exportToCsv = async (req, res) => {
 
     console.log(`Found ${submissions.length} submissions for CSV export`);
 
-    // Build the structure of all questions/subsections from all submissions
-    const questionStructure = new Map();
+    // Helper function to extract clean student info from filename
+    const extractStudentInfo = (studentName, studentId) => {
+      // Common patterns in student submission filenames
+      // Pattern: "ID - Name - filename" or just filename
+      let name = studentName || '';
+      let id = studentId || '';
 
-    submissions.forEach(sub => {
-      let questionScores = sub.evaluationResult?.questionScores;
-
-      // Transform old format if needed
-      if ((!questionScores || !Array.isArray(questionScores) || questionScores.length === 0) &&
-          sub.evaluationResult?.criteriaGrades &&
-          Array.isArray(sub.evaluationResult.criteriaGrades) &&
-          sub.evaluationResult.criteriaGrades.length > 0) {
-        questionScores = transformCriteriaGradesToQuestionScores(sub.evaluationResult.criteriaGrades);
+      // Try to extract from patterns like "2783748846 - Siyuan He - ..."
+      const dashPattern = /^(\d+)\s*-\s*([^-]+)\s*-/;
+      const match = name.match(dashPattern);
+      if (match) {
+        id = match[1].trim();
+        name = match[2].trim();
+      } else if (name.includes('_')) {
+        // Try pattern like "2892315_Siyuan_He_..."
+        const parts = name.split('_');
+        if (parts.length >= 2 && /^\d+$/.test(parts[0])) {
+          id = parts[0];
+          // Find name parts (usually capitalized words)
+          const nameParts = [];
+          for (let i = 1; i < parts.length; i++) {
+            if (/^[A-Z][a-z]+$/.test(parts[i])) {
+              nameParts.push(parts[i]);
+            } else {
+              break;
+            }
+          }
+          if (nameParts.length > 0) {
+            name = nameParts.join(' ');
+          }
+        }
       }
 
-      if (questionScores && Array.isArray(questionScores)) {
-        questionScores.forEach(qScore => {
-          const qNum = qScore.questionNumber || 'Unknown';
+      // If we still have the original long string, just use what we have
+      if (name.length > 50) {
+        // Take first reasonable portion
+        const firstDash = name.indexOf(' - ');
+        if (firstDash > 0) {
+          const secondDash = name.indexOf(' - ', firstDash + 3);
+          if (secondDash > 0) {
+            id = name.substring(0, firstDash).trim();
+            name = name.substring(firstDash + 3, secondDash).trim();
+          }
+        }
+      }
 
-          if (!questionStructure.has(qNum)) {
-            questionStructure.set(qNum, {
+      return { name: name || 'Unknown', id: id || 'N/A' };
+    };
+
+    // Build the structure directly from criteriaGrades to match rubric exactly
+    // This ensures the CSV columns match the exact rubric criteria structure
+    const criteriaStructure = [];
+
+    // First, collect all unique criteria across all submissions
+    submissions.forEach(sub => {
+      const criteriaGrades = sub.evaluationResult?.criteriaGrades;
+
+      if (criteriaGrades && Array.isArray(criteriaGrades) && criteriaGrades.length > 0) {
+        // Use criteriaGrades directly - this matches the rubric structure exactly
+        criteriaGrades.forEach((grade, index) => {
+          const qNum = grade.questionNumber || `${index + 1}`;
+          const criterionName = grade.criterionName || `Criterion ${index + 1}`;
+
+          // Check if we already have this criterion
+          const existingIndex = criteriaStructure.findIndex(c =>
+            c.questionNumber === qNum && c.criterionName === criterionName
+          );
+
+          if (existingIndex === -1) {
+            criteriaStructure.push({
               questionNumber: qNum,
-              maxScore: qScore.maxScore || 0,
-              subsections: new Map()
+              criterionName: criterionName,
+              maxScore: grade.maxScore || 0,
+              index: index
             });
-          }
-
-          const question = questionStructure.get(qNum);
-          if (qScore.maxScore > question.maxScore) {
-            question.maxScore = qScore.maxScore;
-          }
-
-          if (qScore.subsections && qScore.subsections.length > 0) {
-            qScore.subsections.forEach(subsec => {
-              const subsecKey = subsec.subsectionNumber || '';
-              if (!question.subsections.has(subsecKey)) {
-                question.subsections.set(subsecKey, {
-                  subsectionNumber: subsecKey,
-                  maxScore: subsec.maxScore || 0
-                });
-              } else {
-                const existing = question.subsections.get(subsecKey);
-                if (subsec.maxScore > existing.maxScore) {
-                  existing.maxScore = subsec.maxScore;
-                }
-              }
-            });
+          } else {
+            // Update maxScore if this one is higher
+            if (grade.maxScore > criteriaStructure[existingIndex].maxScore) {
+              criteriaStructure[existingIndex].maxScore = grade.maxScore;
+            }
           }
         });
       }
     });
 
-    // Sort questions and convert to array
-    const sortedQuestions = Array.from(questionStructure.values()).sort((a, b) => {
-      const numA = parseInt(a.questionNumber) || 0;
-      const numB = parseInt(b.questionNumber) || 0;
-      return numA - numB;
+    // Sort criteria by their original index (maintains rubric order)
+    criteriaStructure.sort((a, b) => a.index - b.index);
+
+    // Build question columns from criteria structure
+    const questionColumns = [];
+    criteriaStructure.forEach((criterion, idx) => {
+      // Create a short label for the column header
+      let label = criterion.questionNumber;
+
+      // If question number is not numeric or is generic, use a shorter version
+      if (!/^\d+[a-z]?$/i.test(label)) {
+        // For non-standard question numbers, just use the number
+        label = `${idx + 1}`;
+      }
+
+      questionColumns.push({
+        label: label,
+        maxScore: criterion.maxScore,
+        questionNumber: criterion.questionNumber,
+        criterionName: criterion.criterionName,
+        subsectionNumber: ''
+      });
     });
 
-    // Build question column info - collect all question/subsection labels
-    const questionColumns = [];
-    sortedQuestions.forEach(q => {
-      const subsections = Array.from(q.subsections.values()).sort((a, b) => {
-        const aNum = parseInt(a.subsectionNumber);
-        const bNum = parseInt(b.subsectionNumber);
-        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-        return String(a.subsectionNumber).localeCompare(String(b.subsectionNumber));
+    // If no criteria found from criteriaGrades, fall back to questionScores
+    if (questionColumns.length === 0) {
+      submissions.forEach(sub => {
+        let questionScores = sub.evaluationResult?.questionScores;
+
+        if ((!questionScores || !Array.isArray(questionScores) || questionScores.length === 0) &&
+            sub.evaluationResult?.criteriaGrades &&
+            Array.isArray(sub.evaluationResult.criteriaGrades) &&
+            sub.evaluationResult.criteriaGrades.length > 0) {
+          questionScores = transformCriteriaGradesToQuestionScores(sub.evaluationResult.criteriaGrades);
+        }
+
+        if (questionScores && Array.isArray(questionScores)) {
+          questionScores.forEach(qScore => {
+            const qNum = qScore.questionNumber || 'Unknown';
+            const exists = questionColumns.find(c => c.questionNumber === qNum);
+
+            if (!exists) {
+              questionColumns.push({
+                label: qNum,
+                maxScore: qScore.maxScore || 0,
+                questionNumber: qNum,
+                criterionName: qScore.questionText || qNum,
+                subsectionNumber: ''
+              });
+            }
+          });
+        }
       });
 
-      if (subsections.length > 0) {
-        subsections.forEach(subsec => {
-          // Use the exact format from the evaluation - could be 1.1, 1a, 1i, 1(a), etc.
-          let label;
-          const subsecNum = subsec.subsectionNumber;
-          if (!subsecNum) {
-            label = `${q.questionNumber}`;
-          } else if (/^\d+$/.test(subsecNum)) {
-            // Numeric: 1.1, 1.2, etc.
-            label = `${q.questionNumber}.${subsecNum}`;
-          } else if (/^[ivxlcdm]+$/i.test(subsecNum)) {
-            // Roman numerals: 1.i, 1.ii, etc.
-            label = `${q.questionNumber}.${subsecNum}`;
-          } else if (/^[a-z]$/i.test(subsecNum)) {
-            // Single letter: 1a, 1b, etc.
-            label = `${q.questionNumber}${subsecNum}`;
-          } else if (/^\([a-z0-9]+\)$/i.test(subsecNum)) {
-            // Already has parentheses: 1(a), 1(i), etc.
-            label = `${q.questionNumber}${subsecNum}`;
-          } else {
-            // Default: append with dot
-            label = `${q.questionNumber}.${subsecNum}`;
-          }
-          questionColumns.push({
-            label: label,
-            maxScore: subsec.maxScore,
-            questionNumber: q.questionNumber,
-            subsectionNumber: subsec.subsectionNumber
-          });
-        });
-      } else {
-        questionColumns.push({
-          label: `${q.questionNumber}`,
-          maxScore: q.maxScore,
-          questionNumber: q.questionNumber,
-          subsectionNumber: ''
-        });
-      }
-    });
+      // Sort by question number
+      questionColumns.sort((a, b) => {
+        const numA = parseInt(a.questionNumber) || 0;
+        const numB = parseInt(b.questionNumber) || 0;
+        return numA - numB;
+      });
+    }
+
+    // Log what columns we're using
+    console.log(`CSV export: Found ${questionColumns.length} criteria columns for export`);
 
     // Build CSV rows
     const rows = [];
 
-    // Row 1: Assignment Title
-    rows.push([`Assignment: ${assignment.title || 'Untitled Assignment'}`]);
+    // Calculate total possible from question columns
+    const calculatedTotalPossible = questionColumns.reduce((sum, col) => sum + (col.maxScore || 0), 0);
+    const totalPossiblePoints = assignment.totalPoints || calculatedTotalPossible || 100;
 
-    // Row 2: Section/Description
-    rows.push([`Section: ${assignment.section || assignment.description || 'N/A'}`]);
-
-    // Row 3: Export date
-    rows.push([`Generated: ${new Date().toLocaleString()}`]);
-
-    // Row 4: Empty row for spacing
+    // ==================== HEADER SECTION ====================
+    rows.push(['GRADE REPORT']);
+    rows.push([]);
+    rows.push(['Assignment:', assignment.title || 'Untitled Assignment']);
+    if (assignment.section) {
+      rows.push(['Section:', assignment.section]);
+    }
+    if (assignment.description && assignment.description !== assignment.section) {
+      rows.push(['Description:', assignment.description.substring(0, 100) + (assignment.description.length > 100 ? '...' : '')]);
+    }
+    rows.push(['Total Points:', totalPossiblePoints]);
+    rows.push(['Submissions:', submissions.length]);
+    rows.push(['Generated:', new Date().toLocaleString()]);
     rows.push([]);
 
-    // Row 5: Headers
-    const headers = ['Student Name', 'Student ID'];
+    // ==================== MAIN GRADES TABLE ====================
+    rows.push(['STUDENT GRADES']);
+    rows.push([]);
+
+    // Headers row with max points integrated
+    const headers = ['#', 'Student ID', 'Student Name'];
     questionColumns.forEach(col => {
-      headers.push(col.label);
+      headers.push(`Q${col.label}(${col.maxScore})`);
     });
-    headers.push('Total Score', 'Total Possible', 'Percentage', 'Strengths', 'Areas for Improvement');
+    headers.push(`Total(${totalPossiblePoints})`, 'Percentage', 'Grade', 'Strengths', 'Areas for Improvement');
     rows.push(headers);
 
-    // Row 6: Max scores row
-    const maxScoreRow = ['Max Score', ''];
-    questionColumns.forEach(col => {
-      maxScoreRow.push(col.maxScore);
-    });
-    maxScoreRow.push(assignment.totalPoints || '', '', '', '', '');
-    rows.push(maxScoreRow);
+    // Helper to convert percentage to letter grade
+    const getLetterGrade = (percentage) => {
+      if (percentage >= 90) return 'A';
+      if (percentage >= 80) return 'B';
+      if (percentage >= 70) return 'C';
+      if (percentage >= 60) return 'D';
+      return 'F';
+    };
+
+    // Track statistics
+    const allScores = [];
+    const gradeDistribution = { A: 0, B: 0, C: 0, D: 0, F: 0 };
 
     // Data rows for each student
-    submissions.forEach(sub => {
+    submissions.forEach((sub, index) => {
+      // Extract clean student info
+      const studentInfo = extractStudentInfo(sub.studentName, sub.studentId);
+
       const row = [
-        sub.studentName || 'N/A',
-        sub.studentId || 'N/A'
+        index + 1,
+        studentInfo.id,
+        studentInfo.name
       ];
 
-      // Get question scores
-      let questionScores = sub.evaluationResult?.questionScores;
-      if ((!questionScores || !Array.isArray(questionScores) || questionScores.length === 0) &&
-          sub.evaluationResult?.criteriaGrades &&
-          Array.isArray(sub.evaluationResult.criteriaGrades) &&
-          sub.evaluationResult.criteriaGrades.length > 0) {
-        questionScores = transformCriteriaGradesToQuestionScores(sub.evaluationResult.criteriaGrades);
-      }
+      // Get scores from criteriaGrades (primary) or questionScores (fallback)
+      const criteriaGrades = sub.evaluationResult?.criteriaGrades;
 
-      // Create a map for easy lookup
+      // Create a map for easy lookup by questionNumber + criterionName
       const scoresMap = new Map();
-      if (questionScores && Array.isArray(questionScores)) {
-        questionScores.forEach(qScore => {
-          const qNum = qScore.questionNumber || 'Unknown';
-          scoresMap.set(qNum, qScore);
+
+      if (criteriaGrades && Array.isArray(criteriaGrades) && criteriaGrades.length > 0) {
+        // Use criteriaGrades directly - matches rubric structure exactly
+        criteriaGrades.forEach((grade, idx) => {
+          const qNum = grade.questionNumber || `${idx + 1}`;
+          const criterionName = grade.criterionName || `Criterion ${idx + 1}`;
+          // Key matches how we built questionColumns
+          scoresMap.set(`${qNum}_${criterionName}`, grade.score || 0);
+          // Also set by just question number for backward compatibility
+          if (!scoresMap.has(qNum)) {
+            scoresMap.set(qNum, grade.score || 0);
+          }
         });
+      } else {
+        // Fallback to questionScores
+        let questionScores = sub.evaluationResult?.questionScores;
+        if ((!questionScores || !Array.isArray(questionScores) || questionScores.length === 0) &&
+            criteriaGrades &&
+            Array.isArray(criteriaGrades) &&
+            criteriaGrades.length > 0) {
+          questionScores = transformCriteriaGradesToQuestionScores(criteriaGrades);
+        }
+
+        if (questionScores && Array.isArray(questionScores)) {
+          questionScores.forEach(qScore => {
+            const qNum = qScore.questionNumber || 'Unknown';
+            scoresMap.set(qNum, qScore.earnedScore || 0);
+          });
+        }
       }
 
       // Fill in scores for each question column
       questionColumns.forEach(col => {
-        const qScore = scoresMap.get(col.questionNumber);
         let earnedScore = '';
 
-        if (qScore) {
-          if (col.subsectionNumber && qScore.subsections) {
-            // Find matching subsection
-            const matchingSubsec = qScore.subsections.find(s =>
-              s.subsectionNumber === col.subsectionNumber
-            );
-            if (matchingSubsec) {
-              earnedScore = matchingSubsec.earnedScore || 0;
-            }
-          } else if (!col.subsectionNumber) {
-            // Question without subsections
-            earnedScore = qScore.earnedScore || 0;
-          } else if (qScore.subsections && qScore.subsections.length > 0) {
-            // Try to find subsection by number
-            const matchingSubsec = qScore.subsections.find(s =>
-              s.subsectionNumber === col.subsectionNumber
-            );
-            if (matchingSubsec) {
-              earnedScore = matchingSubsec.earnedScore || 0;
-            }
-          }
+        // Try exact match first (questionNumber + criterionName)
+        const exactKey = `${col.questionNumber}_${col.criterionName}`;
+        if (scoresMap.has(exactKey)) {
+          earnedScore = scoresMap.get(exactKey);
+        } else if (scoresMap.has(col.questionNumber)) {
+          // Fallback to questionNumber only
+          earnedScore = scoresMap.get(col.questionNumber);
         }
 
-        row.push(earnedScore);
+        row.push(earnedScore === '' ? '-' : earnedScore);
       });
 
-      // Add totals and overall feedback
+      // Calculate totals
       const totalEarned = sub.evaluationResult?.overallGrade || 0;
-      const totalPossible = sub.evaluationResult?.totalPossible || assignment.totalPoints || 100;
-      const percentage = totalPossible > 0 ? ((totalEarned / totalPossible) * 100).toFixed(1) : '0.0';
+      const percentage = totalPossiblePoints > 0 ? (totalEarned / totalPossiblePoints) * 100 : 0;
+      const letterGrade = getLetterGrade(percentage);
 
+      // Track for statistics
+      allScores.push(totalEarned);
+      gradeDistribution[letterGrade]++;
+
+      // Get feedback
       const strengths = sub.evaluationResult?.strengths
         ? (Array.isArray(sub.evaluationResult.strengths)
-            ? sub.evaluationResult.strengths.join('; ')
+            ? sub.evaluationResult.strengths.slice(0, 3).join(' | ')
             : sub.evaluationResult.strengths)
         : '';
 
       const improvements = sub.evaluationResult?.areasForImprovement
         ? (Array.isArray(sub.evaluationResult.areasForImprovement)
-            ? sub.evaluationResult.areasForImprovement.join('; ')
+            ? sub.evaluationResult.areasForImprovement.slice(0, 3).join(' | ')
             : sub.evaluationResult.areasForImprovement)
         : '';
 
-      row.push(totalEarned, totalPossible, `${percentage}%`, strengths, improvements);
+      row.push(totalEarned, `${percentage.toFixed(1)}%`, letterGrade, strengths, improvements);
       rows.push(row);
     });
+
+    // ==================== CLASS STATISTICS ====================
+    if (submissions.length > 0) {
+      rows.push([]);
+      rows.push(['CLASS STATISTICS']);
+      rows.push([]);
+
+      const avg = allScores.reduce((a, b) => a + b, 0) / allScores.length;
+      const sortedScores = [...allScores].sort((a, b) => a - b);
+      const median = sortedScores.length % 2 === 0
+        ? (sortedScores[sortedScores.length / 2 - 1] + sortedScores[sortedScores.length / 2]) / 2
+        : sortedScores[Math.floor(sortedScores.length / 2)];
+      const min = Math.min(...allScores);
+      const max = Math.max(...allScores);
+      const avgPercentage = (avg / totalPossiblePoints) * 100;
+
+      rows.push(['Mean Score:', avg.toFixed(2), `(${avgPercentage.toFixed(1)}%)`]);
+      rows.push(['Median Score:', median.toFixed(2)]);
+      rows.push(['Highest Score:', max]);
+      rows.push(['Lowest Score:', min]);
+      rows.push(['Score Range:', max - min]);
+      rows.push([]);
+
+      // Grade distribution
+      rows.push(['GRADE DISTRIBUTION']);
+      rows.push([]);
+      rows.push(['Grade', 'Count', 'Percentage']);
+      Object.keys(gradeDistribution).forEach(grade => {
+        const count = gradeDistribution[grade];
+        const pct = ((count / submissions.length) * 100).toFixed(1);
+        rows.push([grade, count, `${pct}%`]);
+      });
+    }
 
     // Convert to CSV string
     const csvContent = rows.map(row =>
