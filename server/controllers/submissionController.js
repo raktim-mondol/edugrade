@@ -1534,49 +1534,41 @@ exports.exportToCsv = async (req, res) => {
       if (criteriaGrades && Array.isArray(criteriaGrades) && criteriaGrades.length > 0) {
         // Use criteriaGrades directly - this matches the rubric structure exactly
         criteriaGrades.forEach((grade, index) => {
-          const qNum = grade.questionNumber || `${index + 1}`;
+          const qNum = String(grade.questionNumber || `${index + 1}`);
           const criterionName = grade.criterionName || `Criterion ${index + 1}`;
+          const maxScore = parseFloat(grade.maxScore) || 0;
 
-          // Check if we already have this criterion
-          const existingIndex = criteriaStructure.findIndex(c =>
-            c.questionNumber === qNum && c.criterionName === criterionName
-          );
-
-          if (existingIndex === -1) {
+          // Check if we already have this criterion (by index position for exact matching)
+          if (criteriaStructure.length <= index) {
+            // Add new criterion at this index
             criteriaStructure.push({
               questionNumber: qNum,
               criterionName: criterionName,
-              maxScore: grade.maxScore || 0,
+              maxScore: maxScore,
               index: index
             });
           } else {
-            // Update maxScore if this one is higher
-            if (grade.maxScore > criteriaStructure[existingIndex].maxScore) {
-              criteriaStructure[existingIndex].maxScore = grade.maxScore;
+            // Update maxScore if this one is higher (handles edge cases)
+            if (maxScore > criteriaStructure[index].maxScore) {
+              criteriaStructure[index].maxScore = maxScore;
             }
           }
         });
       }
     });
 
-    // Sort criteria by their original index (maintains rubric order)
-    criteriaStructure.sort((a, b) => a.index - b.index);
+    // Log the criteria structure for debugging
+    console.log(`CSV export: Found ${criteriaStructure.length} criteria from evaluations:`);
+    criteriaStructure.forEach((c, i) => {
+      console.log(`  ${i + 1}. Q${c.questionNumber} - ${c.criterionName} (${c.maxScore} pts)`);
+    });
 
-    // Build question columns from criteria structure
+    // Build question columns from criteria structure - use exact values from rubric
     const questionColumns = [];
-    criteriaStructure.forEach((criterion, idx) => {
-      // Create a short label for the column header
-      let label = criterion.questionNumber;
-
-      // If question number is not numeric or is generic, use a shorter version
-      if (!/^\d+[a-z]?$/i.test(label)) {
-        // For non-standard question numbers, just use the number
-        label = `${idx + 1}`;
-      }
-
+    criteriaStructure.forEach((criterion) => {
       questionColumns.push({
-        label: label,
-        maxScore: criterion.maxScore,
+        label: criterion.questionNumber, // Use exact question number from rubric
+        maxScore: criterion.maxScore,    // Use exact max score from rubric
         questionNumber: criterion.questionNumber,
         criterionName: criterion.criterionName,
         subsectionNumber: ''
@@ -1690,15 +1682,12 @@ exports.exportToCsv = async (req, res) => {
 
       if (criteriaGrades && Array.isArray(criteriaGrades) && criteriaGrades.length > 0) {
         // Use criteriaGrades directly - matches rubric structure exactly
+        // Store by index for direct positional matching (most reliable)
         criteriaGrades.forEach((grade, idx) => {
-          const qNum = grade.questionNumber || `${idx + 1}`;
-          const criterionName = grade.criterionName || `Criterion ${idx + 1}`;
-          // Key matches how we built questionColumns
-          scoresMap.set(`${qNum}_${criterionName}`, grade.score || 0);
-          // Also set by just question number for backward compatibility
-          if (!scoresMap.has(qNum)) {
-            scoresMap.set(qNum, grade.score || 0);
-          }
+          scoresMap.set(`idx_${idx}`, grade.score || 0);
+          // Also store by questionNumber for fallback
+          const qNum = String(grade.questionNumber || `${idx + 1}`);
+          scoresMap.set(qNum, grade.score || 0);
         });
       } else {
         // Fallback to questionScores
@@ -1718,16 +1707,15 @@ exports.exportToCsv = async (req, res) => {
         }
       }
 
-      // Fill in scores for each question column
-      questionColumns.forEach(col => {
+      // Fill in scores for each question column (by index position)
+      questionColumns.forEach((col, colIndex) => {
         let earnedScore = '';
 
-        // Try exact match first (questionNumber + criterionName)
-        const exactKey = `${col.questionNumber}_${col.criterionName}`;
-        if (scoresMap.has(exactKey)) {
-          earnedScore = scoresMap.get(exactKey);
+        // Primary: match by index position (most reliable for rubric sync)
+        if (scoresMap.has(`idx_${colIndex}`)) {
+          earnedScore = scoresMap.get(`idx_${colIndex}`);
         } else if (scoresMap.has(col.questionNumber)) {
-          // Fallback to questionNumber only
+          // Fallback to questionNumber
           earnedScore = scoresMap.get(col.questionNumber);
         }
 
