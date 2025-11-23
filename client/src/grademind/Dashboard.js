@@ -229,6 +229,41 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
     }
   };
 
+  const handleDeleteStudent = async (student, e) => {
+    e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to delete submission for "${student.name}"?`)) {
+      return;
+    }
+
+    try {
+      // Delete from backend if it has a backend ID
+      if (student.id && student.id.length === 24) {
+        await api.delete(`/api/submissions/${student.id}`);
+      }
+
+      // Remove from local state
+      const updatedSections = assignment.sections.map(section => {
+        if (section.id === activeSectionId) {
+          return {
+            ...section,
+            students: section.students.filter(s => s.id !== student.id)
+          };
+        }
+        return section;
+      });
+
+      onUpdateAssignment({ ...assignment, sections: updatedSections });
+
+      // Clear selection if deleted student was selected
+      if (selectedStudent?.id === student.id) {
+        setSelectedStudent(null);
+      }
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+      alert('Failed to delete submission. Please try again.');
+    }
+  };
+
   const handleRenameStart = (section, e) => {
     e.stopPropagation();
     setEditingSectionId(section.id);
@@ -894,6 +929,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                         <th className="px-4 md:px-6 py-3 font-medium">Name</th>
                         <th className="px-4 md:px-6 py-3 font-medium">Status</th>
                         <th className="px-4 md:px-6 py-3 font-medium text-right">Score (/{assignment.config.totalScore || 100})</th>
+                        <th className="px-4 md:px-6 py-3 font-medium text-center w-16">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-50">
@@ -912,6 +948,15 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
                           </td>
                           <td className="px-4 md:px-6 py-4 text-right font-mono text-zinc-600">
                             {student.result ? student.result.score : '—'}
+                          </td>
+                          <td className="px-4 md:px-6 py-4 text-center">
+                            <button
+                              onClick={(e) => handleDeleteStudent(student, e)}
+                              className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                              title="Delete submission"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </td>
                         </tr>
                       ))}
