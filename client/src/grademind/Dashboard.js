@@ -238,7 +238,7 @@ const Dashboard = ({ assignment, onUpdateAssignment, onBack }) => {
     try {
       // Delete from backend if it has a backend ID
       if (student.id && student.id.length === 24) {
-        await api.delete(`/api/submissions/${student.id}`);
+        await api.delete(`/submissions/${student.id}`);
       }
 
       // Remove from local state
