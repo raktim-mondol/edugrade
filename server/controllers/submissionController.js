@@ -1655,7 +1655,7 @@ exports.exportToCsv = async (req, res) => {
     questionColumns.forEach(col => {
       headers.push(`Q${col.label}(${col.maxScore})`);
     });
-    headers.push(`Total(${totalPossiblePoints})`, 'Percentage', 'Grade');
+    headers.push(`Total(${totalPossiblePoints})`, 'Percentage', 'Grade', 'Strengths', 'Areas for Improvement');
     rows.push(headers);
 
     // Helper to convert percentage to letter grade
@@ -1743,7 +1743,20 @@ exports.exportToCsv = async (req, res) => {
       allScores.push(totalEarned);
       gradeDistribution[letterGrade]++;
 
-      row.push(totalEarned, `${percentage.toFixed(1)}%`, letterGrade);
+      // Get feedback
+      const strengths = sub.evaluationResult?.strengths
+        ? (Array.isArray(sub.evaluationResult.strengths)
+            ? sub.evaluationResult.strengths.slice(0, 3).join(' | ')
+            : sub.evaluationResult.strengths)
+        : '';
+
+      const improvements = sub.evaluationResult?.areasForImprovement
+        ? (Array.isArray(sub.evaluationResult.areasForImprovement)
+            ? sub.evaluationResult.areasForImprovement.slice(0, 3).join(' | ')
+            : sub.evaluationResult.areasForImprovement)
+        : '';
+
+      row.push(totalEarned, `${percentage.toFixed(1)}%`, letterGrade, strengths, improvements);
       rows.push(row);
     });
 
@@ -1779,30 +1792,6 @@ exports.exportToCsv = async (req, res) => {
         rows.push([grade, count, `${pct}%`]);
       });
     }
-
-    // ==================== DETAILED FEEDBACK (separate section) ====================
-    rows.push([]);
-    rows.push(['DETAILED FEEDBACK']);
-    rows.push([]);
-    rows.push(['Student ID', 'Student Name', 'Strengths', 'Areas for Improvement']);
-
-    submissions.forEach(sub => {
-      const studentInfo = extractStudentInfo(sub.studentName, sub.studentId);
-
-      const strengths = sub.evaluationResult?.strengths
-        ? (Array.isArray(sub.evaluationResult.strengths)
-            ? sub.evaluationResult.strengths.slice(0, 3).join(' | ')
-            : sub.evaluationResult.strengths)
-        : '';
-
-      const improvements = sub.evaluationResult?.areasForImprovement
-        ? (Array.isArray(sub.evaluationResult.areasForImprovement)
-            ? sub.evaluationResult.areasForImprovement.slice(0, 3).join(' | ')
-            : sub.evaluationResult.areasForImprovement)
-        : '';
-
-      rows.push([studentInfo.id, studentInfo.name, strengths, improvements]);
-    });
 
     // Convert to CSV string
     const csvContent = rows.map(row =>
