@@ -104,7 +104,9 @@ async function extractWithRetry(pdfPath, maxRetries = 3) {
 
       // Don't retry on certain errors
       if (error.message.includes('not found') ||
-          error.message.includes('not configured')) {
+          error.message.includes('not configured') ||
+          error.message.includes('402') ||
+          error.message.includes('Payment Required')) {
         throw error;
       }
 

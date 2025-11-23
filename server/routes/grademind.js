@@ -195,8 +195,39 @@ router.post('/evaluate', upload.single('file'), async (req, res) => {
           console.log(`✅ Landing AI extraction successful. Content length: ${studentContent.length} chars`);
         } catch (extractError) {
           console.error('❌ Landing AI extraction failed:', extractError.message);
-          // Fallback: try to read as text
-          studentContent = fs.readFileSync(filePath, 'utf-8');
+          // Fallback: use direct Gemini PDF processing
+          console.log('🔄 Falling back to direct Gemini PDF processing...');
+
+          const model = genAI.getGenerativeModel({ model: config.selectedModels?.[0] || 'gemini-2.5-pro' });
+          const fileBuffer = fs.readFileSync(filePath);
+          const base64File = fileBuffer.toString('base64');
+
+          // Clean up uploaded file
+          fs.unlinkSync(filePath);
+
+          // Call Gemini with the PDF file
+          const prompt = buildEvaluationPrompt(config, '[See attached PDF file]');
+
+          const result = await model.generateContent({
+            contents: [{
+              role: 'user',
+              parts: [
+                { text: prompt },
+                {
+                  inlineData: {
+                    mimeType: 'application/pdf',
+                    data: base64File
+                  }
+                }
+              ]
+            }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 2048,
+            },
+          });
+
+          return handleGeminiResponse(res, result, config);
         }
       } else if (fileExtension === '.pdf') {
         console.log('⚠️ Landing AI not configured - falling back to direct Gemini PDF processing');
