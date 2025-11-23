@@ -278,7 +278,7 @@ async function evaluateSubmission(assignmentData, rubricData, solutionData, subm
     // --- Prepare prompt components ---
     const questionStructure = assignmentData.questionStructure || [];
     const userProvidedPoints = assignmentData.totalPoints ? Number(assignmentData.totalPoints) : null;
-    
+
     // Calculate question structure text
     let questionStructureText = 'Question Structure:\n';
     if (questionStructure.length > 0) {
@@ -293,14 +293,19 @@ async function evaluateSubmission(assignmentData, rubricData, solutionData, subm
     const rubricCriteria = rubricData?.grading_criteria || [];
     let questionRubricText = 'Rubric Details per Question:\n';
     let criteriaQuestionMappingText = 'Criteria to Question Mapping:\n';
+    let rubricScoringTable = '';
     if (rubricCriteria.length > 0) {
-      rubricCriteria.forEach(crit => {
+      rubricScoringTable = '\n⚠️ **MANDATORY SCORING TABLE - YOU MUST USE THESE EXACT POINT VALUES:**\n';
+      rubricScoringTable += '| # | Question | Criterion | maxScore | Score Range |\n|---|----------|-----------|----------|-------------|\n';
+      rubricCriteria.forEach((crit, idx) => {
         const qNum = crit.question_number || 'General';
-        questionRubricText += `- Criterion: ${crit.criterionName || 'N/A'} (Max: ${crit.weight || 0} points)\n  Description: ${crit.description || 'N/A'}\n`;
+        const weight = crit.weight || 0;
+        questionRubricText += `- Criterion: ${crit.criterionName || 'N/A'} (Max: ${weight} points)\n  Description: ${crit.description || 'N/A'}\n`;
         if (crit.marking_scale) {
           questionRubricText += `  Scale: ${crit.marking_scale}\n`;
         }
         criteriaQuestionMappingText += `- Criterion '${crit.criterionName || 'N/A'}' applies to Question(s): ${qNum}\n`;
+        rubricScoringTable += `| ${idx + 1} | Q${qNum} | ${crit.criterionName || 'N/A'} | ${weight} | 0-${weight} |\n`;
       });
     } else {
       questionRubricText += rubricData ? 'No detailed rubric criteria found.\n' : 'No separate rubric provided - using assignment instructions for grading.\n';
@@ -357,10 +362,11 @@ Total Points: ${totalPossibleScore}
 ${rubricCriteria.length > 0 ? `Grading Criteria: ${rubricCriteria.length} criteria found - EACH MUST BE APPLIED` : "No specific grading criteria found - derive from assignment instructions"}
 ${questionRubricText}
 ${criteriaQuestionMappingText}
+${rubricScoringTable}
 
 MODEL SOLUTION:
-${solutionData && Object.keys(solutionData).length > 0 && !solutionData.processing_error ? 
-  `Solution available with ${solutionData.questions ? solutionData.questions.length : 0} question(s)` : 
+${solutionData && Object.keys(solutionData).length > 0 && !solutionData.processing_error ?
+  `Solution available with ${solutionData.questions ? solutionData.questions.length : 0} question(s)` :
   "No model solution available or solution processing failed."}
 
 STUDENT INFORMATION:
@@ -435,21 +441,22 @@ EVALUATION INSTRUCTIONS:
 4. The TOTAL maximum score for this assignment is ${totalPossibleScore} points.
 5. Grade EXACTLY according to the provided question structure and point values.
 6. Each question or subquestion must receive a score matching its defined point value in the question structure.
-7. ${rubricCriteria.length > 0 ? 
-    '**IMPORTANT: A grading rubric has been provided. You MUST follow the rubric criteria strictly for each question. Use the specific criteria descriptions, marking scales, and point distributions defined in the rubric. Reference all content (text, code, visuals, outputs) when applying the rubric criteria.**' : 
+7. ${rubricCriteria.length > 0 ?
+    '**IMPORTANT: A grading rubric has been provided. You MUST follow the rubric criteria strictly for each question. Use the specific criteria descriptions, marking scales, and point distributions defined in the rubric. Reference all content (text, code, visuals, outputs) when applying the rubric criteria.**' :
     'Since no explicit rubric is provided, derive grading criteria from the assignment instructions and question descriptions. Create appropriate evaluation criteria based on what each question is asking for.'
   }
 8. ${rubricCriteria.length > 0 ? '**CRITICAL: Use the question-to-criteria mappings provided in the rubric. Each criterion is mapped to specific question(s) and must be applied accordingly with the specified weights.**' : 'Base your grading criteria on standard expectations for the type of questions asked (e.g., correctness, completeness, clarity, code quality, explanation depth).'}
-9. Do NOT convert scores to percentages. Use the raw scores exactly as specified.
-10. Provide detailed feedback for each question/subquestion${rubricCriteria.length > 0 ? ', **explicitly referencing which rubric criteria were met or not met**' : ''}${solutionData && Object.keys(solutionData).length > 0 && !solutionData.processing_error ? ' and comparing with the model solution' : ''} where applicable.
-11. ${originalFileType === '.ipynb' ? 
+${rubricCriteria.length > 0 ? `9. **MANDATORY SCORING RULE: For each criteriaGrade entry, the maxScore MUST EXACTLY MATCH the rubric criterion's weight (point value) from the scoring table above. The score awarded must be between 0 and that maxScore. DO NOT invent or modify point values.**` : ''}
+10. Do NOT convert scores to percentages. Use the raw scores exactly as specified.
+11. Provide detailed feedback for each question/subquestion${rubricCriteria.length > 0 ? ', **explicitly referencing which rubric criteria were met or not met**' : ''}${solutionData && Object.keys(solutionData).length > 0 && !solutionData.processing_error ? ' and comparing with the model solution' : ''} where applicable.
+12. ${originalFileType === '.ipynb' ?
     'Include assessment of code implementation, execution results, documentation quality, and any visualizations. Consider the logical flow of the notebook and the quality of outputs.' :
     'Include assessment of written explanations, code implementations (if any), mathematical work, diagrams, and any visual elements in your feedback. Describe what you observe in the document.'
    }
-12. Provide an overall grade (sum of question/subquestion scores), ensuring it does not exceed the total possible score.
-13. Provide a list of strengths observed in the submission (considering all content).
-14. Provide a list of areas for improvement. **Each item MUST specify the question/section number where marks were lost, the number of points deducted, and a clear explanation of why marks were lost** (e.g., "Question 2b (-3 points): Missing error handling for edge cases and no validation of input parameters").
-15. Provide concrete suggestions for the student.
+13. Provide an overall grade (sum of question/subquestion scores), ensuring it does not exceed the total possible score.
+14. Provide a list of strengths observed in the submission (considering all content).
+15. Provide a list of areas for improvement. **Each item MUST specify the question/section number where marks were lost, the number of points deducted, and a clear explanation of why marks were lost** (e.g., "Question 2b (-3 points): Missing error handling for edge cases and no validation of input parameters").
+16. Provide concrete suggestions for the student.
 ${rubricCriteria.length > 0 ? '\n**REMINDER: When a rubric is provided, it is the PRIMARY grading standard. All scores and feedback must align with the rubric criteria.**' : ''}
 
 OUTPUT REQUIREMENTS:
@@ -459,10 +466,10 @@ Provide your response ONLY as a valid JSON object matching the requested structu
 - "criteriaGrades": Array of objects with MANDATORY subsection breakdown for EVERY question. Each object must have:
   * "questionNumber": <string> (e.g., "1", "2", "1a", "1b")
   * "criterionName": <string> (descriptive name of what's being graded)
-  * "score": <number> (points awarded)
-  * "maxScore": <number> (maximum possible points)
+  * "score": <number> (points awarded - must be between 0 and maxScore)
+  * "maxScore": <number> (MUST match the rubric criterion's weight/point value exactly)
   * "feedback": <string> (detailed explanation, minimum 20 words)
-  
+
   **CRITICAL RULES FOR criteriaGrades:**
   1. EVERY question from the question structure MUST have AT LEAST ONE entry in criteriaGrades
   2. If a question has no explicit subsections, create ONE criteriaGrade entry for that entire question
@@ -470,6 +477,8 @@ Provide your response ONLY as a valid JSON object matching the requested structu
   4. Question numbers in criteriaGrades MUST match the question structure exactly
   5. The sum of all scores in criteriaGrades MUST equal overallGrade
   6. Each criteriaGrade entry MUST have substantive feedback (minimum 20 words)
+  7. **maxScore for each criterion MUST EXACTLY MATCH the weight value from the rubric scoring table - DO NOT invent scores**
+  8. **score must be between 0 and maxScore - never exceed the rubric-defined maximum**
   
   Example for a simple question with no subsections:
   {
