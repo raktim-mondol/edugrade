@@ -1474,6 +1474,55 @@ exports.exportToCsv = async (req, res) => {
 
     console.log(`Found ${submissions.length} submissions for CSV export`);
 
+    // Helper function to extract clean student info from filename
+    const extractStudentInfo = (studentName, studentId) => {
+      // Common patterns in student submission filenames
+      // Pattern: "ID - Name - filename" or just filename
+      let name = studentName || '';
+      let id = studentId || '';
+
+      // Try to extract from patterns like "2783748846 - Siyuan He - ..."
+      const dashPattern = /^(\d+)\s*-\s*([^-]+)\s*-/;
+      const match = name.match(dashPattern);
+      if (match) {
+        id = match[1].trim();
+        name = match[2].trim();
+      } else if (name.includes('_')) {
+        // Try pattern like "2892315_Siyuan_He_..."
+        const parts = name.split('_');
+        if (parts.length >= 2 && /^\d+$/.test(parts[0])) {
+          id = parts[0];
+          // Find name parts (usually capitalized words)
+          const nameParts = [];
+          for (let i = 1; i < parts.length; i++) {
+            if (/^[A-Z][a-z]+$/.test(parts[i])) {
+              nameParts.push(parts[i]);
+            } else {
+              break;
+            }
+          }
+          if (nameParts.length > 0) {
+            name = nameParts.join(' ');
+          }
+        }
+      }
+
+      // If we still have the original long string, just use what we have
+      if (name.length > 50) {
+        // Take first reasonable portion
+        const firstDash = name.indexOf(' - ');
+        if (firstDash > 0) {
+          const secondDash = name.indexOf(' - ', firstDash + 3);
+          if (secondDash > 0) {
+            id = name.substring(0, firstDash).trim();
+            name = name.substring(firstDash + 3, secondDash).trim();
+          }
+        }
+      }
+
+      return { name: name || 'Unknown', id: id || 'N/A' };
+    };
+
     // Build the structure of all questions/subsections from all submissions
     const questionStructure = new Map();
 
@@ -1585,39 +1634,67 @@ exports.exportToCsv = async (req, res) => {
     // Build CSV rows
     const rows = [];
 
-    // Row 1: Assignment Title
-    rows.push([`Assignment: ${assignment.title || 'Untitled Assignment'}`]);
+    // Calculate total possible from question columns
+    const calculatedTotalPossible = questionColumns.reduce((sum, col) => sum + (col.maxScore || 0), 0);
+    const totalPossiblePoints = assignment.totalPoints || calculatedTotalPossible || 100;
 
-    // Row 2: Section/Description
-    rows.push([`Section: ${assignment.section || assignment.description || 'N/A'}`]);
-
-    // Row 3: Export date
-    rows.push([`Generated: ${new Date().toLocaleString()}`]);
-
-    // Row 4: Empty row for spacing
+    // ==================== HEADER SECTION ====================
+    rows.push(['GRADE REPORT']);
+    rows.push([]);
+    rows.push(['Assignment:', assignment.title || 'Untitled Assignment']);
+    if (assignment.section) {
+      rows.push(['Section:', assignment.section]);
+    }
+    if (assignment.description && assignment.description !== assignment.section) {
+      rows.push(['Description:', assignment.description.substring(0, 100) + (assignment.description.length > 100 ? '...' : '')]);
+    }
+    rows.push(['Total Points:', totalPossiblePoints]);
+    rows.push(['Submissions:', submissions.length]);
+    rows.push(['Generated:', new Date().toLocaleString()]);
     rows.push([]);
 
-    // Row 5: Headers
-    const headers = ['Student Name', 'Student ID'];
+    // ==================== MAIN GRADES TABLE ====================
+    rows.push(['STUDENT GRADES']);
+    rows.push([]);
+
+    // Headers row
+    const headers = ['#', 'Student ID', 'Student Name'];
     questionColumns.forEach(col => {
-      headers.push(col.label);
+      headers.push(`Q${col.label}`);
     });
-    headers.push('Total Score', 'Total Possible', 'Percentage', 'Strengths', 'Areas for Improvement');
+    headers.push('Total', 'Percentage', 'Grade');
     rows.push(headers);
 
-    // Row 6: Max scores row
-    const maxScoreRow = ['Max Score', ''];
+    // Max scores row
+    const maxScoreRow = ['', '', 'Max Points'];
     questionColumns.forEach(col => {
       maxScoreRow.push(col.maxScore);
     });
-    maxScoreRow.push(assignment.totalPoints || '', '', '', '', '');
+    maxScoreRow.push(totalPossiblePoints, '100%', '');
     rows.push(maxScoreRow);
 
+    // Helper to convert percentage to letter grade
+    const getLetterGrade = (percentage) => {
+      if (percentage >= 90) return 'A';
+      if (percentage >= 80) return 'B';
+      if (percentage >= 70) return 'C';
+      if (percentage >= 60) return 'D';
+      return 'F';
+    };
+
+    // Track statistics
+    const allScores = [];
+    const gradeDistribution = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+
     // Data rows for each student
-    submissions.forEach(sub => {
+    submissions.forEach((sub, index) => {
+      // Extract clean student info
+      const studentInfo = extractStudentInfo(sub.studentName, sub.studentId);
+
       const row = [
-        sub.studentName || 'N/A',
-        sub.studentId || 'N/A'
+        index + 1,
+        studentInfo.id,
+        studentInfo.name
       ];
 
       // Get question scores
@@ -1645,7 +1722,6 @@ exports.exportToCsv = async (req, res) => {
 
         if (qScore) {
           if (col.subsectionNumber && qScore.subsections) {
-            // Find matching subsection
             const matchingSubsec = qScore.subsections.find(s =>
               s.subsectionNumber === col.subsectionNumber
             );
@@ -1653,10 +1729,8 @@ exports.exportToCsv = async (req, res) => {
               earnedScore = matchingSubsec.earnedScore || 0;
             }
           } else if (!col.subsectionNumber) {
-            // Question without subsections
             earnedScore = qScore.earnedScore || 0;
           } else if (qScore.subsections && qScore.subsections.length > 0) {
-            // Try to find subsection by number
             const matchingSubsec = qScore.subsections.find(s =>
               s.subsectionNumber === col.subsectionNumber
             );
@@ -1669,25 +1743,74 @@ exports.exportToCsv = async (req, res) => {
         row.push(earnedScore);
       });
 
-      // Add totals and overall feedback
+      // Calculate totals
       const totalEarned = sub.evaluationResult?.overallGrade || 0;
-      const totalPossible = sub.evaluationResult?.totalPossible || assignment.totalPoints || 100;
-      const percentage = totalPossible > 0 ? ((totalEarned / totalPossible) * 100).toFixed(1) : '0.0';
+      const percentage = totalPossiblePoints > 0 ? (totalEarned / totalPossiblePoints) * 100 : 0;
+      const letterGrade = getLetterGrade(percentage);
+
+      // Track for statistics
+      allScores.push(totalEarned);
+      gradeDistribution[letterGrade]++;
+
+      row.push(totalEarned, `${percentage.toFixed(1)}%`, letterGrade);
+      rows.push(row);
+    });
+
+    // ==================== CLASS STATISTICS ====================
+    if (submissions.length > 0) {
+      rows.push([]);
+      rows.push(['CLASS STATISTICS']);
+      rows.push([]);
+
+      const avg = allScores.reduce((a, b) => a + b, 0) / allScores.length;
+      const sortedScores = [...allScores].sort((a, b) => a - b);
+      const median = sortedScores.length % 2 === 0
+        ? (sortedScores[sortedScores.length / 2 - 1] + sortedScores[sortedScores.length / 2]) / 2
+        : sortedScores[Math.floor(sortedScores.length / 2)];
+      const min = Math.min(...allScores);
+      const max = Math.max(...allScores);
+      const avgPercentage = (avg / totalPossiblePoints) * 100;
+
+      rows.push(['Mean Score:', avg.toFixed(2), `(${avgPercentage.toFixed(1)}%)`]);
+      rows.push(['Median Score:', median.toFixed(2)]);
+      rows.push(['Highest Score:', max]);
+      rows.push(['Lowest Score:', min]);
+      rows.push(['Score Range:', max - min]);
+      rows.push([]);
+
+      // Grade distribution
+      rows.push(['GRADE DISTRIBUTION']);
+      rows.push([]);
+      rows.push(['Grade', 'Count', 'Percentage']);
+      Object.keys(gradeDistribution).forEach(grade => {
+        const count = gradeDistribution[grade];
+        const pct = ((count / submissions.length) * 100).toFixed(1);
+        rows.push([grade, count, `${pct}%`]);
+      });
+    }
+
+    // ==================== DETAILED FEEDBACK (separate section) ====================
+    rows.push([]);
+    rows.push(['DETAILED FEEDBACK']);
+    rows.push([]);
+    rows.push(['Student ID', 'Student Name', 'Strengths', 'Areas for Improvement']);
+
+    submissions.forEach(sub => {
+      const studentInfo = extractStudentInfo(sub.studentName, sub.studentId);
 
       const strengths = sub.evaluationResult?.strengths
         ? (Array.isArray(sub.evaluationResult.strengths)
-            ? sub.evaluationResult.strengths.join('; ')
+            ? sub.evaluationResult.strengths.slice(0, 3).join(' | ')
             : sub.evaluationResult.strengths)
         : '';
 
       const improvements = sub.evaluationResult?.areasForImprovement
         ? (Array.isArray(sub.evaluationResult.areasForImprovement)
-            ? sub.evaluationResult.areasForImprovement.join('; ')
+            ? sub.evaluationResult.areasForImprovement.slice(0, 3).join(' | ')
             : sub.evaluationResult.areasForImprovement)
         : '';
 
-      row.push(totalEarned, totalPossible, `${percentage}%`, strengths, improvements);
-      rows.push(row);
+      rows.push([studentInfo.id, studentInfo.name, strengths, improvements]);
     });
 
     // Convert to CSV string
